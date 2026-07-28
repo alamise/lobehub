@@ -1,5 +1,6 @@
 import type { PermissionResourceType } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
+import { isGlobalSharedAgentId } from '@/database/utils/globalSharedAgent';
 import {
   canPerformResourceAction,
   getResourceMeta,
@@ -61,6 +62,7 @@ export const getResourceConfigAccess = async (
 ): Promise<ResourceConfigAccess> => {
   const workspaceId = ctx.workspaceId ?? undefined;
   if (!workspaceId) return 'full';
+  if (resourceType === 'agent' && isGlobalSharedAgentId(resourceId)) return 'full';
 
   const ownAccess = await getSingleResourceConfigAccess(
     { ...ctx, workspaceId },

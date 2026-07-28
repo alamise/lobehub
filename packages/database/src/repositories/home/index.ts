@@ -18,6 +18,7 @@ import {
 } from '../../schemas';
 import { type LobeChatDatabase } from '../../type';
 import { sanitizeBm25Query } from '../../utils/bm25';
+import { buildReadableAgentWhere } from '../../utils/globalSharedAgent';
 import { normalizeInboxAgentMeta } from '../../utils/inboxAgent';
 import { buildWorkspaceWhere } from '../../utils/workspace';
 
@@ -50,6 +51,15 @@ export class HomeRepository {
 
   private get scope() {
     return { userId: this.userId, workspaceId: this.workspaceId };
+  }
+
+  private get readableAgentWhere() {
+    return buildReadableAgentWhere(this.scope, {
+      id: agents.id,
+      userId: agents.userId,
+      visibility: agents.visibility,
+      workspaceId: agents.workspaceId,
+    });
   }
 
   private normalizeVisibility(visibility: 'private' | 'public'): 'private' | 'public' {
@@ -86,18 +96,15 @@ export class HomeRepository {
         visibility: agents.visibility,
       })
       .from(agents)
-      .leftJoin(agentsToSessions, eq(agents.id, agentsToSessions.agentId))
-      .leftJoin(sessions, eq(agentsToSessions.sessionId, sessions.id))
-      .where(
+      .leftJoin(
+        agentsToSessions,
         and(
-          buildWorkspaceWhere(this.scope, {
-            userId: agents.userId,
-            workspaceId: agents.workspaceId,
-            visibility: agents.visibility,
-          }),
-          not(eq(agents.virtual, true)),
+          eq(agents.id, agentsToSessions.agentId),
+          buildWorkspaceWhere(this.scope, agentsToSessions),
         ),
       )
+      .leftJoin(sessions, eq(agentsToSessions.sessionId, sessions.id))
+      .where(and(this.readableAgentWhere, not(eq(agents.virtual, true))))
       .orderBy(desc(agents.updatedAt));
 
     // 2. Query all chatGroups (group chats)
@@ -436,11 +443,17 @@ export class HomeRepository {
           visibility: agents.visibility,
         })
         .from(agents)
-        .leftJoin(agentsToSessions, eq(agents.id, agentsToSessions.agentId))
+        .leftJoin(
+          agentsToSessions,
+          and(
+            eq(agents.id, agentsToSessions.agentId),
+            buildWorkspaceWhere(this.scope, agentsToSessions),
+          ),
+        )
         .leftJoin(sessions, eq(agentsToSessions.sessionId, sessions.id))
         .where(
           and(
-            buildWorkspaceWhere(this.scope, agents),
+            this.readableAgentWhere,
             not(eq(agents.virtual, true)),
             sql`(${agents.title} @@@ ${bm25Query} OR ${agents.description} @@@ ${bm25Query})`,
           ),

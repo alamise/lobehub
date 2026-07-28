@@ -5,7 +5,7 @@
 export const LOBE_CHAT_CLOUD = 'LobeHub Cloud';
 
 export const BRANDING_NAME = '余小环';
-export const BRANDING_LOGO_URL = '';
+export const BRANDING_LOGO_URL = ['https://static.cyan.zj.cn', 'cyan-logo.png'].join('/');
 
 export const ORG_NAME = '余小环';
 

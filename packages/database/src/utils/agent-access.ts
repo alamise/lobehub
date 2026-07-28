@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { agents } from '../schemas';
 import type { LobeChatDatabase } from '../type';
-import { buildWorkspaceWhere } from './workspace';
+import { buildReadableAgentWhere } from './globalSharedAgent';
 
 interface AgentAccessCtx {
   userId: string;
@@ -34,7 +34,8 @@ export async function assertAgentUsableBy(
     .where(
       and(
         eq(agents.id, agentId),
-        buildWorkspaceWhere(ctx, {
+        buildReadableAgentWhere(ctx, {
+          id: agents.id,
           userId: agents.userId,
           workspaceId: agents.workspaceId,
           visibility: agents.visibility,

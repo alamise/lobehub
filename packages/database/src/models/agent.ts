@@ -51,6 +51,7 @@ import {
   topics,
 } from '../schemas';
 import type { LobeChatDatabase } from '../type';
+import { buildReadableAgentWhere, isGlobalSharedAgentId } from '../utils/globalSharedAgent';
 import { genEndDateWhere, genRangeWhere, genStartDateWhere, genWhere } from '../utils/genWhere';
 import { normalizeInboxAgentMeta } from '../utils/inboxAgent';
 import { buildWorkspacePayload, buildWorkspaceWhere } from '../utils/workspace';
@@ -148,6 +149,17 @@ export class AgentModel {
         userId: agents.userId,
         workspaceId: agents.workspaceId,
         visibility: agents.visibility,
+      },
+    );
+
+  private readableOwnership = () =>
+    buildReadableAgentWhere(
+      { userId: this.userId, workspaceId: this.workspaceId },
+      {
+        id: agents.id,
+        userId: agents.userId,
+        visibility: agents.visibility,
+        workspaceId: agents.workspaceId,
       },
     );
 
@@ -290,7 +302,7 @@ export class AgentModel {
 
   getAgentConfigById = async (id: string) => {
     const agent = await this.db.query.agents.findFirst({
-      where: and(eq(agents.id, id), this.ownership()),
+      where: and(eq(agents.id, id), this.readableOwnership()),
     });
 
     if (!agent) return null;
@@ -308,7 +320,7 @@ export class AgentModel {
     const rows = await this.db
       .select({ visibility: agents.visibility })
       .from(agents)
-      .where(and(eq(agents.id, id), this.ownership()))
+      .where(and(eq(agents.id, id), this.readableOwnership()))
       .limit(1);
     return (rows[0]?.visibility as 'private' | 'public' | undefined) ?? null;
   };
@@ -317,7 +329,7 @@ export class AgentModel {
     const rows = await this.db
       .select({ id: agents.id })
       .from(agents)
-      .where(and(eq(agents.id, id), this.ownership()))
+      .where(and(eq(agents.id, id), this.readableOwnership()))
       .limit(1);
 
     return rows.length > 0;
@@ -354,7 +366,7 @@ export class AgentModel {
     const rows = await this.db
       .select({ model: agents.model, provider: agents.provider })
       .from(agents)
-      .where(and(this.ownership(), or(eq(agents.id, idOrSlug), eq(agents.slug, idOrSlug))))
+      .where(and(this.readableOwnership(), or(eq(agents.id, idOrSlug), eq(agents.slug, idOrSlug))))
       .limit(1);
 
     const row = rows[0];
@@ -385,7 +397,7 @@ export class AgentModel {
         visibility: agents.visibility,
       })
       .from(agents)
-      .where(and(this.ownership(), or(eq(agents.id, idOrSlug), eq(agents.slug, idOrSlug))))
+      .where(and(this.readableOwnership(), or(eq(agents.id, idOrSlug), eq(agents.slug, idOrSlug))))
       .limit(1);
 
     const row = rows[0];
@@ -402,7 +414,7 @@ export class AgentModel {
   private buildQueryAgentsWhere = (keyword?: string) => {
     // Include agents where virtual is false OR null (legacy data without virtual field)
     const baseConditions = and(
-      this.ownership(),
+      this.readableOwnership(),
       or(eq(agents.virtual, false), isNull(agents.virtual)),
     );
 
@@ -505,7 +517,7 @@ export class AgentModel {
         title: agents.title,
       })
       .from(agents)
-      .where(and(this.ownership(), inArray(agents.id, ids)));
+      .where(and(this.readableOwnership(), inArray(agents.id, ids)));
 
     return rows.map(({ slug, ...row }) => normalizeInboxAgentMeta(row, { slug }));
   };
@@ -544,7 +556,12 @@ export class AgentModel {
         visibility: agents.visibility,
       })
       .from(agents)
-      .where(and(this.ownership(), or(ne(agents.virtual, true), eq(agents.slug, INBOX_SESSION_ID))))
+      .where(
+        and(
+          this.readableOwnership(),
+          or(ne(agents.virtual, true), eq(agents.slug, INBOX_SESSION_ID)),
+        ),
+      )
       .orderBy(desc(agents.updatedAt));
 
     const normalized = rows
@@ -587,10 +604,10 @@ export class AgentModel {
     // query has no inherent ordering, so resolve ID first for determinism.
     const agent =
       (await this.db.query.agents.findFirst({
-        where: and(this.ownership(), eq(agents.id, idOrSlug)),
+        where: and(this.readableOwnership(), eq(agents.id, idOrSlug)),
       })) ??
       (await this.db.query.agents.findFirst({
-        where: and(this.ownership(), eq(agents.slug, idOrSlug)),
+        where: and(this.readableOwnership(), eq(agents.slug, idOrSlug)),
       }));
 
     if (!agent) return null;
@@ -615,7 +632,10 @@ export class AgentModel {
 
     if (enabledFileIds.length > 0) {
       const documentsData = await this.db.query.documents.findMany({
-        where: and(this.documentsOwnership(), inArray(documents.fileId, enabledFileIds)),
+        where: and(
+          isGlobalSharedAgentId(agent.id) ? undefined : this.documentsOwnership(),
+          inArray(documents.fileId, enabledFileIds),
+        ),
       });
 
       const documentMap = new Map(documentsData.map((doc) => [doc.fileId, doc.content]));
@@ -629,6 +649,20 @@ export class AgentModel {
   };
 
   getAgentAssignedKnowledge = async (id: string) => {
+    const isGlobalSharedAgent = isGlobalSharedAgentId(id);
+    const agentKnowledgeBaseWhere = isGlobalSharedAgent
+      ? eq(agentsKnowledgeBases.agentId, id)
+      : and(eq(agentsKnowledgeBases.agentId, id), this.agentsKnowledgeBasesOwnership());
+    const agentFileWhere = isGlobalSharedAgent
+      ? eq(agentsFiles.agentId, id)
+      : and(eq(agentsFiles.agentId, id), this.agentsFilesOwnership());
+    const knowledgeBaseVisibilityWhere = isGlobalSharedAgent
+      ? undefined
+      : buildWorkspaceWhere({ userId: this.userId, workspaceId: this.workspaceId }, knowledgeBases);
+    const fileVisibilityWhere = isGlobalSharedAgent
+      ? undefined
+      : buildWorkspaceWhere({ userId: this.userId, workspaceId: this.workspaceId }, files);
+
     // The junction tables carry the mount (created by whoever wired the agent
     // to the KB / file); the ownership() predicates below match the caller's
     // own mount rows within the same workspace.
@@ -646,30 +680,21 @@ export class AgentModel {
       this.db
         .select({ enabled: agentsKnowledgeBases.enabled, knowledgeBases })
         .from(agentsKnowledgeBases)
-        .where(and(eq(agentsKnowledgeBases.agentId, id), this.agentsKnowledgeBasesOwnership()))
+        .where(agentKnowledgeBaseWhere)
         .orderBy(desc(agentsKnowledgeBases.createdAt))
         .leftJoin(
           knowledgeBases,
           and(
             eq(knowledgeBases.id, agentsKnowledgeBases.knowledgeBaseId),
-            buildWorkspaceWhere(
-              { userId: this.userId, workspaceId: this.workspaceId },
-              knowledgeBases,
-            ),
+            knowledgeBaseVisibilityWhere,
           ),
         ),
       this.db
         .select({ enabled: agentsFiles.enabled, files })
         .from(agentsFiles)
-        .where(and(eq(agentsFiles.agentId, id), this.agentsFilesOwnership()))
+        .where(agentFileWhere)
         .orderBy(desc(agentsFiles.createdAt))
-        .leftJoin(
-          files,
-          and(
-            eq(files.id, agentsFiles.fileId),
-            buildWorkspaceWhere({ userId: this.userId, workspaceId: this.workspaceId }, files),
-          ),
-        ),
+        .leftJoin(files, and(eq(files.id, agentsFiles.fileId), fileVisibilityWhere)),
     ]);
 
     return {
