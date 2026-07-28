@@ -11,6 +11,7 @@ import { type PartialDeep } from 'type-fest';
 import { AgentModel } from '@/database/models/agent';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
+import { isGlobalSharedAgentOnlyMode } from '@/database/utils/globalSharedAgent';
 import { normalizeInboxAgentAvatar, normalizeInboxAgentTitle } from '@/database/utils/inboxAgent';
 import { getRedisConfig } from '@/envs/redis';
 import {
@@ -60,6 +61,8 @@ export class AgentService {
   }
 
   async createInbox() {
+    if (isGlobalSharedAgentOnlyMode()) return;
+
     const sessionModel = new SessionModel(this.db, this.userId, this.workspaceId);
     const defaultAgentConfig = getServerDefaultAgentConfig();
     await sessionModel.createInbox(defaultAgentConfig);

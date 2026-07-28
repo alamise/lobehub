@@ -51,7 +51,11 @@ import {
   topics,
 } from '../schemas';
 import type { LobeChatDatabase } from '../type';
-import { buildReadableAgentWhere, isGlobalSharedAgentId } from '../utils/globalSharedAgent';
+import {
+  buildReadableAgentWhere,
+  isGlobalSharedAgentId,
+  isGlobalSharedAgentOnlyMode,
+} from '../utils/globalSharedAgent';
 import { genEndDateWhere, genRangeWhere, genStartDateWhere, genWhere } from '../utils/genWhere';
 import { normalizeInboxAgentMeta } from '../utils/inboxAgent';
 import { buildWorkspacePayload, buildWorkspaceWhere } from '../utils/workspace';
@@ -1296,6 +1300,8 @@ export class AgentModel {
    *
    */
   getBuiltinAgent = async (slug: string): Promise<AgentItem | null> => {
+    if (slug === INBOX_SESSION_ID && isGlobalSharedAgentOnlyMode()) return null;
+
     // 1. First try to find existing agent by slug
     const existing = await this.db.query.agents.findFirst({
       where: and(eq(agents.slug, slug), this.ownership()),

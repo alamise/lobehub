@@ -7,6 +7,17 @@ import { buildWorkspaceWhere } from './workspace';
 
 const DEFAULT_GLOBAL_SHARED_AGENT_IDS = 'agt_J8tHPinLzsfP';
 
+const enabledValues = new Set(['1', 'true', 'yes', 'on']);
+
+export const isGlobalSharedAgentOnlyMode = (): boolean => {
+  const raw =
+    process.env.LOBE_GLOBAL_SHARED_AGENT_ONLY ||
+    process.env.LOBE_YUXIAOHUAN_SHARED_AGENT_ONLY ||
+    '';
+
+  return enabledValues.has(raw.trim().toLowerCase());
+};
+
 export const getGlobalSharedAgentIds = (): string[] => {
   const raw =
     process.env.LOBE_GLOBAL_SHARED_AGENT_IDS ||

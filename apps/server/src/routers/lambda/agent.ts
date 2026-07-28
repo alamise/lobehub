@@ -16,6 +16,7 @@ import { SessionModel } from '@/database/models/session';
 import { TaskModel } from '@/database/models/task';
 import { UserModel } from '@/database/models/user';
 import { DEFAULT_RESOURCE_ACCESS_LEVELS, RESOURCE_ACCESS_LEVELS_BY_TYPE } from '@/database/schemas';
+import { isGlobalSharedAgentOnlyMode } from '@/database/utils/globalSharedAgent';
 import { router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { AgentService } from '@/server/services/agent';
@@ -519,6 +520,8 @@ export const agentRouter = router({
     )
     .query(async ({ input, ctx }) => {
       if (input.sessionId === INBOX_SESSION_ID) {
+        if (isGlobalSharedAgentOnlyMode()) throw new Error('Inbox agent is disabled');
+
         const item = await ctx.sessionModel.findByIdOrSlug(INBOX_SESSION_ID);
         // if there is no session for user, create one
         if (!item) {

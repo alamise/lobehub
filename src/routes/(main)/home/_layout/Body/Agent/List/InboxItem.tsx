@@ -51,18 +51,22 @@ interface InboxItemProps {
 
 const InboxItem = memo<InboxItemProps>(({ className, style }) => {
   const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
-  const inboxMeta = useAgentStore(agentSelectors.getAgentMetaById(inboxAgentId!));
+  const resolvedInboxAgentId = inboxAgentId ?? '';
+  const inboxMeta = useAgentStore(agentSelectors.getAgentMetaById(resolvedInboxAgentId));
 
   const isLoading = useChatStore(
     inboxAgentId ? operationSelectors.isAgentVisiblyRunning(inboxAgentId) : () => false,
   );
   const prefetchAgent = usePrefetchAgent();
+  const inboxUrl = usePreservedAgentUrl(resolvedInboxAgentId);
+
+  if (!inboxAgentId) return null;
+
   const inboxAgentTitle = inboxMeta.title || 'Lobe AI';
   const inboxAgentAvatar = inboxMeta.avatar || DEFAULT_INBOX_AVATAR;
-  const inboxUrl = usePreservedAgentUrl(inboxAgentId!);
 
   // Prefetch agent layout chunk and data eagerly since Lobe AI is almost always clicked
-  prefetchAgent(inboxAgentId!);
+  prefetchAgent(inboxAgentId);
 
   const avatarNode = (
     <Avatar emojiScaleWithBackground avatar={inboxAgentAvatar} shape={'square'} size={24} />
