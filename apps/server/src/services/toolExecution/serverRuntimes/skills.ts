@@ -27,6 +27,7 @@ import { AgentModel } from '@/database/models/agent';
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { FileModel } from '@/database/models/file';
 import { UserModel } from '@/database/models/user';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import type { LobeChatDatabase } from '@/database/type';
 import { filterBuiltinSkills } from '@/helpers/skillFilters';
 import { AgentDocumentsService } from '@/server/services/agentDocuments';
@@ -103,6 +104,7 @@ class SkillServerRuntimeService implements SkillRuntimeService {
   private agentId?: string;
   private resourceService: SkillResourceService;
   private skillModel: AgentSkillModel;
+  private sharedOnly: boolean;
   private marketService: MarketService;
   private fileService: FileService;
   private fileModel: FileModel;
@@ -128,6 +130,7 @@ class SkillServerRuntimeService implements SkillRuntimeService {
     marketService: MarketService;
     resourceService: SkillResourceService;
     serverDB: LobeChatDatabase;
+    sharedOnly?: boolean;
     skillModel: AgentSkillModel;
     topicId?: string;
     userId: string;
@@ -140,6 +143,7 @@ class SkillServerRuntimeService implements SkillRuntimeService {
     this.fileService = options.fileService;
     this.fileModel = options.fileModel;
     this.serverDB = options.serverDB;
+    this.sharedOnly = options.sharedOnly ?? false;
     this.topicId = options.topicId;
     this.userId = options.userId;
     this.workspaceId = options.workspaceId;
@@ -148,16 +152,20 @@ class SkillServerRuntimeService implements SkillRuntimeService {
   }
 
   findAll = (): Promise<{ data: SkillListItem[]; total: number }> => {
-    return this.skillModel.findAll();
+    return this.skillModel.findAll({ sharedOnly: this.sharedOnly });
   };
 
   findById = async (id: string): Promise<SkillItem | undefined> => {
-    const skill = await this.skillModel.findById(id);
+    const skill = this.sharedOnly
+      ? await this.skillModel.findSharedById(id)
+      : await this.skillModel.findById(id);
     return skill && this.disabledSkillIds.has(skill.identifier) ? undefined : skill;
   };
 
   findByName = async (name: string): Promise<SkillItem | undefined> => {
-    const skill = await this.skillModel.findByName(name);
+    const skill = this.sharedOnly
+      ? await this.skillModel.findSharedByName(name)
+      : await this.skillModel.findByName(name);
     return skill && this.disabledSkillIds.has(skill.identifier) ? undefined : skill;
   };
 
@@ -170,7 +178,9 @@ class SkillServerRuntimeService implements SkillRuntimeService {
   };
 
   readResource = async (id: string, path: string): Promise<SkillResourceContent> => {
-    const skill = await this.skillModel.findById(id);
+    const skill = this.sharedOnly
+      ? await this.skillModel.findSharedById(id)
+      : await this.skillModel.findById(id);
     if (!skill) throw new Error(`Skill not found: ${id}`);
     if (!skill.resources) throw new Error(`Skill has no resources: ${id}`);
     return this.resourceService.readResource(skill.resources, path);
@@ -219,7 +229,9 @@ class SkillServerRuntimeService implements SkillRuntimeService {
         topicId: this.topicId,
         userId: this.userId,
       });
-      const response = await sandboxService.callTool('runCommand', { command: lhResult.command });
+      const response = await sandboxService.callTool('runCommand', {
+        command: lhResult.command,
+      });
 
       log('runCommand response: %O', response);
 
@@ -233,7 +245,10 @@ class SkillServerRuntimeService implements SkillRuntimeService {
         };
       }
 
-      return { ...normalizeSandboxCommandResult(response), executionEnv: 'sandbox' };
+      return {
+        ...normalizeSandboxCommandResult(response),
+        executionEnv: 'sandbox',
+      };
     } catch (error) {
       log('Error running command: %O', error);
       return {
@@ -261,7 +276,9 @@ class SkillServerRuntimeService implements SkillRuntimeService {
     for (const activatedSkill of activatedSkills) {
       if (!activatedSkill.name) continue;
 
-      const skill = await this.skillModel.findByName(activatedSkill.name);
+      const skill = this.sharedOnly
+        ? await this.skillModel.findSharedByName(activatedSkill.name)
+        : await this.skillModel.findByName(activatedSkill.name);
 
       if (!skill) {
         log('No persisted skill bundle found for activated skill: %s', activatedSkill.name);
@@ -275,7 +292,11 @@ class SkillServerRuntimeService implements SkillRuntimeService {
 
       const fullUrl = await this.fileService.getFullFileUrl(fileInfo.url);
       if (fullUrl) {
-        archives.push({ name: skill.name, url: fullUrl, zipHash: skill.zipFileHash });
+        archives.push({
+          name: skill.name,
+          url: fullUrl,
+          zipHash: skill.zipFileHash,
+        });
         log('Resolved zipUrl for skill %s', skill.name);
       }
     }
@@ -408,7 +429,9 @@ class SkillServerRuntimeService implements SkillRuntimeService {
           arguments: JSON.stringify({
             command,
             ...(cwd && { cwd }),
-            ...(device.executionTimeoutMs && { timeout: device.executionTimeoutMs }),
+            ...(device.executionTimeoutMs && {
+              timeout: device.executionTimeoutMs,
+            }),
           }),
           identifier: LocalSystemIdentifier,
         },
@@ -542,7 +565,10 @@ class SkillServerRuntimeService implements SkillRuntimeService {
         };
       }
 
-      return { ...normalizeSandboxCommandResult(response), executionEnv: 'sandbox' };
+      return {
+        ...normalizeSandboxCommandResult(response),
+        executionEnv: 'sandbox',
+      };
     } catch (error) {
       log('Error executing script: %O', error);
       return {
@@ -636,11 +662,21 @@ export const skillsRuntime: ServerRuntimeRegistration = {
       disabledSkillIds = new Set(getDisabledPluginIds(agentConfig?.plugins ?? undefined));
     }
 
-    const skillModel = new AgentSkillModel(context.serverDB, context.userId, context.workspaceId);
+    const sharedAgentScope = context.agentId
+      ? await resolveGlobalSharedAgentScope(context.serverDB, context.agentId)
+      : null;
+    const resourceUserId = sharedAgentScope?.ownerUserId ?? context.userId;
+    const resourceWorkspaceId = sharedAgentScope?.ownerWorkspaceId ?? context.workspaceId;
+
+    const skillModel = new AgentSkillModel(
+      context.serverDB,
+      resourceUserId,
+      resourceWorkspaceId ?? undefined,
+    );
     const resourceService = new SkillResourceService(
       context.serverDB,
-      context.userId,
-      context.workspaceId,
+      resourceUserId,
+      resourceWorkspaceId ?? undefined,
     );
     const marketService = new MarketService({
       accessToken: marketAccessToken,
@@ -679,6 +715,7 @@ export const skillsRuntime: ServerRuntimeRegistration = {
       marketService,
       resourceService,
       serverDB: context.serverDB,
+      sharedOnly: !!sharedAgentScope,
       skillModel,
       topicId: context.topicId,
       userId: context.userId,

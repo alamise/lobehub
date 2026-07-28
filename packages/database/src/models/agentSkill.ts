@@ -38,6 +38,13 @@ const skillListColumns = {
   zipFileHash: agentSkills.zipFileHash,
 };
 
+const sharedSkillPredicate = sql<boolean>`coalesce((${agentSkills.manifest} ->> 'yuxiaohuanGlobalShared')::boolean, false)`;
+const GLOBAL_SHARED_MARK = 'yuxiaohuanGlobalShared';
+
+export interface AgentSkillQueryOptions {
+  sharedOnly?: boolean;
+}
+
 export class AgentSkillModel {
   private userId: string;
   private workspaceId?: string;
@@ -51,6 +58,9 @@ export class AgentSkillModel {
 
   private scopeWhere = () =>
     buildWorkspaceWhere({ userId: this.userId, workspaceId: this.workspaceId }, agentSkills);
+
+  private queryWhere = (options: AgentSkillQueryOptions = {}) =>
+    options.sharedOnly ? and(this.scopeWhere(), sharedSkillPredicate) : this.scopeWhere();
 
   // ========== Create ==========
 
@@ -73,11 +83,29 @@ export class AgentSkillModel {
     return result;
   };
 
+  findSharedById = async (id: string): Promise<SkillItem | undefined> => {
+    const [result] = await this.db
+      .select(skillItemColumns)
+      .from(agentSkills)
+      .where(and(eq(agentSkills.id, id), this.queryWhere({ sharedOnly: true })))
+      .limit(1);
+    return result;
+  };
+
   findByIdentifier = async (identifier: string): Promise<SkillItem | undefined> => {
     const [result] = await this.db
       .select(skillItemColumns)
       .from(agentSkills)
       .where(and(eq(agentSkills.identifier, identifier), this.scopeWhere()))
+      .limit(1);
+    return result;
+  };
+
+  findSharedByIdentifier = async (identifier: string): Promise<SkillItem | undefined> => {
+    const [result] = await this.db
+      .select(skillItemColumns)
+      .from(agentSkills)
+      .where(and(eq(agentSkills.identifier, identifier), this.queryWhere({ sharedOnly: true })))
       .limit(1);
     return result;
   };
@@ -91,11 +119,27 @@ export class AgentSkillModel {
     return result;
   };
 
-  findAll = async (): Promise<{ data: SkillListItem[]; total: number }> => {
+  findSharedByName = async (name: string): Promise<SkillItem | undefined> => {
+    const [result] = await this.db
+      .select(skillItemColumns)
+      .from(agentSkills)
+      .where(
+        and(
+          sql`lower(${agentSkills.name}) = ${name.toLowerCase()}`,
+          this.queryWhere({ sharedOnly: true }),
+        ),
+      )
+      .limit(1);
+    return result;
+  };
+
+  findAll = async (
+    options: AgentSkillQueryOptions = {},
+  ): Promise<{ data: SkillListItem[]; total: number }> => {
     const data = await this.db
       .select(skillListColumns)
       .from(agentSkills)
-      .where(this.scopeWhere())
+      .where(this.queryWhere(options))
       .orderBy(desc(agentSkills.updatedAt));
 
     return { data, total: data.length };
@@ -111,23 +155,27 @@ export class AgentSkillModel {
 
   listBySource = async (
     source: 'builtin' | 'market' | 'user',
+    options: AgentSkillQueryOptions = {},
   ): Promise<{ data: SkillListItem[]; total: number }> => {
     const data = await this.db
       .select(skillListColumns)
       .from(agentSkills)
-      .where(and(eq(agentSkills.source, source), this.scopeWhere()))
+      .where(and(eq(agentSkills.source, source), this.queryWhere(options)))
       .orderBy(desc(agentSkills.updatedAt));
 
     return { data, total: data.length };
   };
 
-  search = async (query: string): Promise<{ data: SkillListItem[]; total: number }> => {
+  search = async (
+    query: string,
+    options: AgentSkillQueryOptions = {},
+  ): Promise<{ data: SkillListItem[]; total: number }> => {
     const data = await this.db
       .select(skillListColumns)
       .from(agentSkills)
       .where(
         and(
-          this.scopeWhere(),
+          this.queryWhere(options),
           or(ilike(agentSkills.name, `%${query}%`), ilike(agentSkills.description, `%${query}%`)),
         ),
       )
@@ -141,13 +189,33 @@ export class AgentSkillModel {
   update = async (id: string, data: Partial<NewAgentSkill>): Promise<SkillItem> => {
     const existing = await this.findById(id);
 
-    const updateData = merge(existing || {}, { ...data, updatedAt: new Date() });
+    const updateData = merge(existing || {}, {
+      ...data,
+      updatedAt: new Date(),
+    });
 
     const [result] = await this.db
       .update(agentSkills)
       .set(updateData)
       .where(and(eq(agentSkills.id, id), this.scopeWhere()))
       .returning(skillItemColumns);
+    return result;
+  };
+
+  setGlobalShared = async (id: string, shared: boolean): Promise<SkillItem | undefined> => {
+    const existing = await this.findById(id);
+    if (!existing) return;
+
+    const manifest = {
+      ...((existing.manifest ?? {}) as Record<string, unknown>),
+      [GLOBAL_SHARED_MARK]: shared,
+    } as NewAgentSkill['manifest'];
+    const [result] = await this.db
+      .update(agentSkills)
+      .set({ manifest, updatedAt: new Date() })
+      .where(and(eq(agentSkills.id, id), this.scopeWhere()))
+      .returning(skillItemColumns);
+
     return result;
   };
 

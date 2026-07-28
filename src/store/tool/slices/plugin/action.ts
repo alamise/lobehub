@@ -37,14 +37,19 @@ export class PluginActionImpl {
   /**
    * Refresh installed plugins from the server and update store state.
    */
-  refreshPlugins = async (): Promise<void> => {
-    const data = await pluginService.getInstalledPlugins();
+  refreshPlugins = async (agentId?: string): Promise<void> => {
+    const data = await pluginService.getInstalledPlugins(agentId);
     this.#set({ installedPlugins: data }, false, 'refreshPlugins');
   };
 
   updateInstallLoadingState = (id: string, loading: boolean | undefined): void => {
     this.#set(
-      { pluginInstallLoading: { ...this.#get().pluginInstallLoading, [id]: loading } },
+      {
+        pluginInstallLoading: {
+          ...this.#get().pluginInstallLoading,
+          [id]: loading,
+        },
+      },
       false,
       'updateInstallLoadingState',
     );
@@ -59,6 +64,11 @@ export class PluginActionImpl {
       customParams: { mcp: merge(installedPlugin.customParams?.mcp, value) },
     });
 
+    await this.#get().refreshPlugins();
+  };
+
+  setPluginShared = async (id: string, shared: boolean): Promise<void> => {
+    await pluginService.setShared(id, shared);
     await this.#get().refreshPlugins();
   };
 
@@ -82,10 +92,10 @@ export class PluginActionImpl {
     await this.#get().refreshPlugins();
   };
 
-  useFetchInstalledPlugins = (enable: boolean): SWRResponse => {
+  useFetchInstalledPlugins = (enable: boolean, agentId?: string): SWRResponse => {
     return useClientDataSWR(
-      enable ? toolKeys.installedPlugins() : null,
-      () => pluginService.getInstalledPlugins(),
+      enable ? toolKeys.installedPlugins(agentId) : null,
+      () => pluginService.getInstalledPlugins(agentId),
       {
         onSuccess: (data: LobeTool[]) => {
           this.#set(

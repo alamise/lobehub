@@ -10,6 +10,7 @@ import { getDisabledPluginIds } from '@lobechat/types';
 
 import { AgentModel } from '@/database/models/agent';
 import { AgentSkillModel } from '@/database/models/agentSkill';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import { filterBuiltinSkills } from '@/helpers/skillFilters';
 import {
   emitToolOutcomeSafely,
@@ -69,7 +70,16 @@ export const activatorRuntime: ServerRuntimeRegistration = {
     // Create SkillsExecutionRuntime for activateSkill delegation
     let skillsRuntime: SkillsExecutionRuntime | undefined;
     if (context.serverDB && context.userId) {
-      const skillModel = new AgentSkillModel(context.serverDB, context.userId, context.workspaceId);
+      const sharedAgentScope = context.agentId
+        ? await resolveGlobalSharedAgentScope(context.serverDB, context.agentId)
+        : null;
+      const resourceUserId = sharedAgentScope?.ownerUserId ?? context.userId;
+      const resourceWorkspaceId = sharedAgentScope?.ownerWorkspaceId ?? context.workspaceId;
+      const skillModel = new AgentSkillModel(
+        context.serverDB,
+        resourceUserId,
+        resourceWorkspaceId ?? undefined,
+      );
 
       // `activateSkill` resolves independently of `operationSkillSet`/
       // `<available_skills>` (built once, earlier, in aiAgent/index.ts) — it
@@ -93,13 +103,17 @@ export const activatorRuntime: ServerRuntimeRegistration = {
           canExecuteOnDevice: context.deviceCapable ?? !!context.activeDeviceId,
         }).filter((skill) => !disabledSkillIds.has(skill.identifier)),
         service: {
-          findAll: () => skillModel.findAll(),
+          findAll: () => skillModel.findAll({ sharedOnly: !!sharedAgentScope }),
           findById: async (id) => {
-            const skill = await skillModel.findById(id);
+            const skill = sharedAgentScope
+              ? await skillModel.findSharedById(id)
+              : await skillModel.findById(id);
             return skill && disabledSkillIds.has(skill.identifier) ? undefined : skill;
           },
           findByName: async (name) => {
-            const skill = await skillModel.findByName(name);
+            const skill = sharedAgentScope
+              ? await skillModel.findSharedByName(name)
+              : await skillModel.findByName(name);
             return skill && disabledSkillIds.has(skill.identifier) ? undefined : skill;
           },
           readResource: async () => {

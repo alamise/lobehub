@@ -3,15 +3,17 @@
 import { type SkillResourceTreeNode } from '@lobechat/types';
 import { Github } from '@lobehub/icons';
 import { ActionIcon, Flexbox, Icon } from '@lobehub/ui';
-import { Skeleton } from 'antd';
+import { App, Skeleton, Switch } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import { DotIcon, ExternalLinkIcon } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import useSWR from 'swr';
 
 import PublishedTime from '@/components/PublishedTime';
 import SkillAvatar from '@/components/SkillAvatar';
 import FileTree, { FileTreeSkeleton } from '@/features/FileTree';
+import { userService } from '@/services/user';
 import { useToolStore } from '@/store/tool';
 
 import ContentViewer from './ContentViewer';
@@ -78,12 +80,19 @@ const buildContentMap = (nodes: SkillResourceTreeNode[] = []): Record<string, st
 
 const AgentSkillDetail = memo<AgentSkillDetailProps>(({ skillId }) => {
   const { t } = useTranslation('setting');
+  const { message } = App.useApp();
   const [selectedFile, setSelectedFile] = useState('SKILL.md');
   const { data, isLoading } = useToolStore((s) => s.useFetchAgentSkillDetail)(skillId);
+  const setAgentSkillShared = useToolStore((s) => s.setAgentSkillShared);
+  const { data: adminState } = useSWR('user-system-admin-state', () =>
+    userService.getSystemAdminState(),
+  );
 
   const skillDetail = data?.skillDetail;
   const resourceTree = data?.resourceTree;
   const contentMap = useMemo(() => buildContentMap(resourceTree), [resourceTree]);
+  const isShared = !!(skillDetail?.manifest as Record<string, unknown> | undefined)
+    ?.yuxiaohuanGlobalShared;
 
   if (isLoading) {
     return (
@@ -132,27 +141,51 @@ const AgentSkillDetail = memo<AgentSkillDetailProps>(({ skillId }) => {
                     template={'MMM DD, YYYY'}
                   />
                 </Flexbox>
-                {(repository || sourceUrl) && (
-                  <Flexbox horizontal align={'center'} gap={2} style={{ flexShrink: 0 }}>
-                    {repository && (
-                      <a href={repository} rel="noreferrer" target={'_blank'}>
-                        <ActionIcon
-                          fill={cssVar.colorTextDescription}
-                          icon={Github}
-                          title={t('agentSkillDetail.repository')}
-                        />
-                      </a>
-                    )}
-                    {sourceUrl && (
-                      <a href={sourceUrl} rel="noreferrer" target={'_blank'}>
-                        <ActionIcon
-                          icon={ExternalLinkIcon}
-                          title={t('agentSkillDetail.sourceUrl')}
-                        />
-                      </a>
-                    )}
-                  </Flexbox>
-                )}
+                <Flexbox horizontal align={'center'} gap={8} style={{ flexShrink: 0 }}>
+                  {adminState?.isSystemAdmin && (
+                    <Switch
+                      checked={isShared}
+                      checkedChildren={t('agentSkillDetail.shared', 'Shared')}
+                      size="small"
+                      unCheckedChildren={t('agentSkillDetail.private', 'Private')}
+                      onChange={async (checked) => {
+                        try {
+                          await setAgentSkillShared(skillId, checked);
+                          message.success(
+                            checked
+                              ? t('agentSkillDetail.shareSuccess', 'Skill shared')
+                              : t('agentSkillDetail.unshareSuccess', 'Skill unshared'),
+                          );
+                        } catch {
+                          message.error(
+                            t('agentSkillDetail.shareFailed', 'Failed to update sharing'),
+                          );
+                        }
+                      }}
+                    />
+                  )}
+                  {(repository || sourceUrl) && (
+                    <Flexbox horizontal align={'center'} gap={2} style={{ flexShrink: 0 }}>
+                      {repository && (
+                        <a href={repository} rel="noreferrer" target={'_blank'}>
+                          <ActionIcon
+                            fill={cssVar.colorTextDescription}
+                            icon={Github}
+                            title={t('agentSkillDetail.repository')}
+                          />
+                        </a>
+                      )}
+                      {sourceUrl && (
+                        <a href={sourceUrl} rel="noreferrer" target={'_blank'}>
+                          <ActionIcon
+                            icon={ExternalLinkIcon}
+                            title={t('agentSkillDetail.sourceUrl')}
+                          />
+                        </a>
+                      )}
+                    </Flexbox>
+                  )}
+                </Flexbox>
               </Flexbox>
               {description && <p className={styles.description}>{description}</p>}
             </Flexbox>

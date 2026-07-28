@@ -60,7 +60,9 @@ export class AgentSkillsActionImpl {
       n('deleteAgentSkill'),
     );
 
-    await mutate(toolKeys.agentSkillDetail(id), undefined, { revalidate: false });
+    await mutate(toolKeys.agentSkillDetail(id), undefined, {
+      revalidate: false,
+    });
 
     await this.#get().refreshAgentSkills();
   };
@@ -106,8 +108,8 @@ export class AgentSkillsActionImpl {
     return result;
   };
 
-  refreshAgentSkills = async (): Promise<void> => {
-    const { data } = await agentSkillService.list();
+  refreshAgentSkills = async (agentId?: string): Promise<void> => {
+    const { data } = await agentSkillService.list(undefined, agentId);
     this.#set({ agentSkills: data }, false, n('refreshAgentSkills'));
   };
 
@@ -124,19 +126,43 @@ export class AgentSkillsActionImpl {
       );
     }
 
-    await mutate(toolKeys.agentSkillDetail(params.id), undefined, { revalidate: false });
+    await mutate(toolKeys.agentSkillDetail(params.id), undefined, {
+      revalidate: false,
+    });
 
     await this.#get().refreshAgentSkills();
     return result;
   };
 
-  useFetchAgentSkillDetail = (skillId?: string): SWRResponse<AgentSkillDetailData> =>
+  setAgentSkillShared = async (id: string, shared: boolean): Promise<void> => {
+    const result = await agentSkillService.setShared(id, shared);
+
+    if (result) {
+      this.#set(
+        produce((draft: AgentSkillsState) => {
+          draft.agentSkillDetailMap[id] = result;
+        }),
+        false,
+        n('setAgentSkillShared'),
+      );
+    }
+
+    await mutate(toolKeys.agentSkillDetail(id), undefined, {
+      revalidate: true,
+    });
+    await this.#get().refreshAgentSkills();
+  };
+
+  useFetchAgentSkillDetail = (
+    skillId?: string,
+    agentId?: string,
+  ): SWRResponse<AgentSkillDetailData> =>
     useClientDataSWR<AgentSkillDetailData>(
-      skillId ? toolKeys.agentSkillDetail(skillId) : null,
+      skillId ? toolKeys.agentSkillDetail(skillId, agentId) : null,
       async () => {
         const [detail, resourceTree] = await Promise.all([
-          agentSkillService.getById(skillId!),
-          agentSkillService.listResources(skillId!, true),
+          agentSkillService.getById(skillId!, agentId),
+          agentSkillService.listResources(skillId!, true, agentId),
         ]);
 
         if (detail) {
@@ -154,11 +180,11 @@ export class AgentSkillsActionImpl {
       { revalidateOnFocus: false },
     );
 
-  useFetchAgentSkills = (enabled: boolean): SWRResponse<SkillListItem[]> =>
+  useFetchAgentSkills = (enabled: boolean, agentId?: string): SWRResponse<SkillListItem[]> =>
     useSWR<SkillListItem[]>(
-      enabled ? toolKeys.agentSkills() : null,
+      enabled ? toolKeys.agentSkills(agentId) : null,
       async () => {
-        const { data } = await agentSkillService.list();
+        const { data } = await agentSkillService.list(undefined, agentId);
         return data;
       },
       {

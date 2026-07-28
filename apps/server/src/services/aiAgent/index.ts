@@ -95,6 +95,7 @@ import { TopicModel } from '@/database/models/topic';
 import { UserModel } from '@/database/models/user';
 import { UserPersonaModel } from '@/database/models/userMemory/persona';
 import { WorkspaceUserSettingsModel } from '@/database/models/workspaceUserSettings';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import { toolsEnv } from '@/envs/tools';
 import {
   type ExecutionPlan,
@@ -365,7 +366,11 @@ interface InternalExecAgentParams extends ExecAgentParams {
     url?: string;
   }>;
   /** Client-side function tools from Response API — injected into LLM with source='client' */
-  functionTools?: Array<{ description?: string; name: string; parameters?: Record<string, any> }>;
+  functionTools?: Array<{
+    description?: string;
+    name: string;
+    parameters?: Record<string, any>;
+  }>;
   /** External lifecycle hooks (auto-adapt to local/production mode) */
   hooks?: AgentHook[];
   /** Initial step count offset for resumed operations (accumulated from previous runs) */
@@ -530,7 +535,10 @@ export class AiAgentService {
   constructor(
     db: LobeChatDatabase,
     userId: string,
-    options?: { runtimeOptions?: AgentRuntimeServiceOptions; workspaceId?: string },
+    options?: {
+      runtimeOptions?: AgentRuntimeServiceOptions;
+      workspaceId?: string;
+    },
   ) {
     this.userId = userId;
     this.db = db;
@@ -566,7 +574,11 @@ export class AiAgentService {
       workspaceId: wsId,
     });
     this.marketService = new MarketService({ userInfo: { userId } });
-    this.composioService = new ComposioService({ db, userId, workspaceId: wsId });
+    this.composioService = new ComposioService({
+      db,
+      userId,
+      workspaceId: wsId,
+    });
   }
 
   private async resolveOperationTaskId(
@@ -791,7 +803,9 @@ export class AiAgentService {
         Date.now(),
       );
       if (deviceWorkspaceId) {
-        await deviceModel.updateWorkspaceDevice(activeDeviceId, { workingDirs: updated });
+        await deviceModel.updateWorkspaceDevice(activeDeviceId, {
+          workingDirs: updated,
+        });
       } else {
         await deviceModel.update(activeDeviceId, { workingDirs: updated });
       }
@@ -1043,7 +1057,10 @@ export class AiAgentService {
       // agent resolves to null here. Surface that as NOT_FOUND (not a generic
       // 500) so callers — chat, bot, cron task, sub-agent, REST — return a
       // uniform 404 and we never leak whether the id exists for another user.
-      throw new TRPCError({ code: 'NOT_FOUND', message: `Agent not found: ${identifier}` });
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: `Agent not found: ${identifier}`,
+      });
     }
 
     return agentConfig;
@@ -1068,10 +1085,16 @@ export class AiAgentService {
 
     const runAtDate = new Date(runAt);
     if (Number.isNaN(runAtDate.getTime())) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: `Invalid runAt: ${runAt}` });
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: `Invalid runAt: ${runAt}`,
+      });
     }
     if (runAtDate.getTime() <= Date.now()) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'runAt must be in the future' });
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'runAt must be in the future',
+      });
     }
 
     const agentConfig = await this.resolveAgentConfigOrThrow(agentId || slug!);
@@ -1122,7 +1145,11 @@ export class AiAgentService {
       userMessage.id,
     );
 
-    return { agentId: resolvedAgentId, runAt: runAtDate.toISOString(), topicId: topic.id };
+    return {
+      agentId: resolvedAgentId,
+      runAt: runAtDate.toISOString(),
+      topicId: topic.id,
+    };
   }
 
   /**
@@ -1235,7 +1262,8 @@ export class AiAgentService {
     // Use actual agent ID from config for subsequent operations
     const resolvedAgentId = agentConfig.id;
     let memberDeviceOverride:
-      Pick<LobeAgentAgencyConfig, 'boundDeviceId' | 'executionTarget'> | undefined;
+      | Pick<LobeAgentAgencyConfig, 'boundDeviceId' | 'executionTarget'>
+      | undefined;
     let memberModelOverride: AgentModelOverride | undefined;
     let memberModeOverride: boolean | undefined;
 
@@ -1316,7 +1344,11 @@ export class AiAgentService {
     // The callSubAgent spawn site resolves the sub-agent default and passes it
     // explicitly, so this path never has to special-case sub-agents.
     const effectiveModel = resolveAgentModelConfig(
-      { ...agentConfig, canManage: canManageAgent, workspaceId: agentWorkspaceId },
+      {
+        ...agentConfig,
+        canManage: canManageAgent,
+        workspaceId: agentWorkspaceId,
+      },
       memberModelOverride,
       {
         ...(modelOverride ? { model: modelOverride } : {}),
@@ -1555,7 +1587,10 @@ export class AiAgentService {
           content: rejectionContent,
         });
         await this.messageModel.updateMessagePlugin(resumeApproval.parentMessageId, {
-          intervention: { rejectedReason: rejectionReason, status: 'rejected' },
+          intervention: {
+            rejectedReason: rejectionReason,
+            status: 'rejected',
+          },
         });
       }
 
@@ -1755,7 +1790,12 @@ export class AiAgentService {
     const heteroProviderType = agentConfig.agencyConfig?.heterogeneousProvider?.type;
     const isHeteroAgent = !!heteroProviderType || isHeterogeneousAgentModelId(model);
     const heteroType = (heteroProviderType ?? model) as
-      'amp' | 'claude-code' | 'codex' | 'hermes' | 'openclaw' | 'opencode';
+      | 'amp'
+      | 'claude-code'
+      | 'codex'
+      | 'hermes'
+      | 'openclaw'
+      | 'opencode';
 
     // ── Shared turn setup (runs for BOTH hetero and normal agents) ──────────
     // Everything up to and including persisting the turn is identical for both
@@ -1796,10 +1836,16 @@ export class AiAgentService {
       if (parentMessageId) return parentMessageId;
 
       const threadId = appContext?.threadId ?? null;
-      const spineId = await this.messageModel.getLatestSpineMessageId({ threadId, topicId });
+      const spineId = await this.messageModel.getLatestSpineMessageId({
+        threadId,
+        topicId,
+      });
       if (spineId) return spineId;
 
-      const fallbackId = await this.messageModel.getLatestNonToolMessageId({ threadId, topicId });
+      const fallbackId = await this.messageModel.getLatestNonToolMessageId({
+        threadId,
+        topicId,
+      });
       if (fallbackId) {
         log(
           'execAgent: no spine head for topic %s, anchoring user turn on latest non-tool message %s',
@@ -1959,7 +2005,9 @@ export class AiAgentService {
         operationJwt = await signOperationJwt(this.userId);
       } catch (err) {
         log('execAgent: failed to sign operation JWT for hetero run: %O', err);
-        throw new Error('Failed to sign operation JWT for hetero agent', { cause: err });
+        throw new Error('Failed to sign operation JWT for hetero agent', {
+          cause: err,
+        });
       }
 
       // Read repos from topic metadata for sandbox setup (web/cloud only).
@@ -1977,7 +2025,9 @@ export class AiAgentService {
         // Inside a workspace, the GitHub cred must come from the workspace's shared
         // organization credentials, not the operator's personal creds (LOBE-10978).
         const credsAccessor = this.workspaceId
-          ? this.marketService.market.organizations.creds({ workspaceId: this.workspaceId })
+          ? this.marketService.market.organizations.creds({
+              workspaceId: this.workspaceId,
+            })
           : this.marketService.market.creds;
         const list = await credsAccessor.list();
         const cred = list.data?.find((c: { key: string }) => c.key === githubCredKey);
@@ -1998,7 +2048,10 @@ export class AiAgentService {
       let conversationHistory: ConversationHistoryEntry[] | undefined;
       if (resumeSessionId) {
         try {
-          const recentMsgs = await this.messageModel.query({ topicId, pageSize: 200 });
+          const recentMsgs = await this.messageModel.query({
+            topicId,
+            pageSize: 200,
+          });
           const turns = recentMsgs
             .filter(
               (m) =>
@@ -2032,7 +2085,10 @@ export class AiAgentService {
       // so bot/IM and SPA gateway attachments are handled identically.
       const heteroImageList =
         runAttachments.imageList && runAttachments.imageList.length > 0
-          ? runAttachments.imageList.map((image) => ({ id: image.id, url: image.url }))
+          ? runAttachments.imageList.map((image) => ({
+              id: image.id,
+              url: image.url,
+            }))
           : undefined;
       const heteroExecArgs =
         heteroType === 'amp' ||
@@ -2172,7 +2228,11 @@ export class AiAgentService {
         // so we use executeToolCall with the runHeteroTask tool instead of dispatchAgentRun.
         const remoteDeviceWorkspaceId = await this.resolveDeviceWorkspaceId(remoteDeviceId);
         const result = await deviceGateway.executeToolCall(
-          { deviceId: remoteDeviceId, userId: this.userId, workspaceId: remoteDeviceWorkspaceId },
+          {
+            deviceId: remoteDeviceId,
+            userId: this.userId,
+            workspaceId: remoteDeviceWorkspaceId,
+          },
           {
             apiName: 'runHeteroTask',
             arguments: JSON.stringify({
@@ -2417,8 +2477,9 @@ export class AiAgentService {
           // (which eagerly touches server-only ModelRuntime env at module init), so
           // importing it statically would couple that whole subsystem into every
           // `aiAgent` import. Only this cloud-CLI branch needs it.
-          const { spawnHeteroSandbox } =
-            await import('@/server/services/heterogeneousAgent/sandboxRunner');
+          const { spawnHeteroSandbox } = await import(
+            '@/server/services/heterogeneousAgent/sandboxRunner'
+          );
           // The sandbox authenticates its nested `lh` calls with this JWT. The
           // narrow `hetero-operation` token (used for the device-dispatch path
           // above) is rejected by `oidcAuth`, so CC capabilities that hit
@@ -2636,10 +2697,81 @@ export class AiAgentService {
       // `rules` allowlist — because `createEnableChecker`'s explicit-activation
       // bypass (auto activator) short-circuits before rules are consulted, so a
       // present-but-rule-disabled manifest could still be auto-activated.
+      let connectorGateKeeper: KeyVaultsGateKeeper | undefined;
+      try {
+        connectorGateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
+      } catch (err) {
+        log('execAgent: failed to init gatekeeper for connector credentials: %O', err);
+      }
+
+      const sharedAgentScope = await resolveGlobalSharedAgentScope(this.db, resolvedAgentId);
+      const resourcePluginModel = sharedAgentScope
+        ? new PluginModel(
+            this.db,
+            sharedAgentScope.ownerUserId,
+            sharedAgentScope.ownerWorkspaceId ?? undefined,
+          )
+        : this.pluginModel;
+      const resourceConnectorModel = sharedAgentScope
+        ? new ConnectorModel(
+            this.db,
+            sharedAgentScope.ownerUserId,
+            sharedAgentScope.ownerWorkspaceId ?? undefined,
+            connectorGateKeeper,
+          )
+        : connectorGateKeeper
+          ? new ConnectorModel(this.db, this.userId, this.workspaceId, connectorGateKeeper)
+          : this.connectorModel;
+      const resourceConnectorToolModel = sharedAgentScope
+        ? new ConnectorToolModel(
+            this.db,
+            sharedAgentScope.ownerUserId,
+            sharedAgentScope.ownerWorkspaceId ?? undefined,
+          )
+        : this.connectorToolModel;
+      const resourceComposioService = sharedAgentScope
+        ? new ComposioService({
+            db: this.db,
+            userId: sharedAgentScope.ownerUserId,
+            workspaceId: sharedAgentScope.ownerWorkspaceId ?? undefined,
+          })
+        : this.composioService;
+
       const disabledPluginIdSet = new Set(disabledPluginIds);
-      const installedPlugins = (await this.pluginModel.query()).filter(
-        (p) => !disabledPluginIdSet.has(p.identifier),
-      );
+      const installedPlugins = (
+        sharedAgentScope
+          ? await resourcePluginModel.queryShared()
+          : await resourcePluginModel.query()
+      ).filter((p) => !disabledPluginIdSet.has(p.identifier));
+
+      if (sharedAgentScope) {
+        const sharedSkillModel = new AgentSkillModel(
+          this.db,
+          sharedAgentScope.ownerUserId,
+          sharedAgentScope.ownerWorkspaceId ?? undefined,
+        );
+        const [{ data: sharedSkills }, sharedConnectors] = await Promise.all([
+          sharedSkillModel.findAll({ sharedOnly: true }),
+          resourceConnectorModel.resolveSharedAll(resolvedAgentId, connectorGateKeeper),
+        ]);
+
+        agentPlugins = [
+          ...new Set([
+            ...agentPlugins,
+            ...installedPlugins.map((p) => p.identifier),
+            ...sharedSkills.map((skill) => skill.identifier),
+            ...sharedConnectors.map((connector) => connector.identifier),
+          ]),
+        ];
+
+        log(
+          'execAgent: global shared agent resources loaded plugins=%d skills=%d connectors=%d',
+          installedPlugins.length,
+          sharedSkills.length,
+          sharedConnectors.length,
+        );
+      }
+
       log(
         'execAgent: got %d installed plugins (%d disabled excluded)',
         installedPlugins.length,
@@ -2649,19 +2781,19 @@ export class AiAgentService {
       // 5a-1. Resolve connectors — connector identifier takes priority over plugin.
       // Credentials (OAuth tokens) are encrypted at rest, so decrypt them with a
       // gatekeeper; otherwise buildConnectorManifests gets no auth and tool calls 401.
-      let connectorGateKeeper: KeyVaultsGateKeeper | undefined;
-      try {
-        connectorGateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
-      } catch (err) {
-        log('execAgent: failed to init gatekeeper for connector credentials: %O', err);
-      }
       const connectors =
         agentPlugins.length > 0
-          ? await this.connectorModel.resolveByIdentifiers(
-              agentPlugins,
-              resolvedAgentId,
-              connectorGateKeeper,
-            )
+          ? sharedAgentScope
+            ? await resourceConnectorModel.resolveSharedByIdentifiers(
+                agentPlugins,
+                resolvedAgentId,
+                connectorGateKeeper,
+              )
+            : await resourceConnectorModel.resolveByIdentifiers(
+                agentPlugins,
+                resolvedAgentId,
+                connectorGateKeeper,
+              )
           : [];
 
       // 5a-1b. Model awareness: when the caller runs a shared agent whose tools
@@ -2705,7 +2837,7 @@ export class AiAgentService {
       // The runtime hot-path still uses queryByConnectorIds (non-disabled only) elsewhere.
       const connectorTools =
         connectorsMcp.length > 0
-          ? await this.connectorToolModel.queryAllByConnectorIds(connectorsMcp.map((c) => c.id))
+          ? await resourceConnectorToolModel.queryAllByConnectorIds(connectorsMcp.map((c) => c.id))
           : [];
 
       connectorManifests = buildConnectorManifests(connectorsMcp, connectorTools);
@@ -2721,12 +2853,9 @@ export class AiAgentService {
         // against the MCP server, so it needs a gatekeeper-backed model — the
         // same `connectorGateKeeper` used above. `this.connectorModel` has none,
         // which would decrypt to null and make an authed connector 401 → error.
-        const refreshConnectorModel = connectorGateKeeper
-          ? new ConnectorModel(this.db, this.userId, this.workspaceId, connectorGateKeeper)
-          : this.connectorModel;
         scheduleStaleConnectorToolsRefresh(connectorsMcp, buildLastSyncedAtMap(connectorTools), {
-          connectorModel: refreshConnectorModel,
-          connectorToolModel: this.connectorToolModel,
+          connectorModel: resourceConnectorModel,
+          connectorToolModel: resourceConnectorToolModel,
         });
       } catch (err) {
         log('execAgent: failed to schedule connector tool refresh (ignored): %O', err);
@@ -2762,7 +2891,7 @@ export class AiAgentService {
 
       // 5d. Fetch Composio tool manifests from database
       try {
-        composioManifests = await this.composioService.getComposioManifests(resolvedAgentId);
+        composioManifests = await resourceComposioService.getComposioManifests(resolvedAgentId);
       } catch (error) {
         log('execAgent: failed to fetch composio manifests: %O', error);
       }
@@ -2788,15 +2917,24 @@ export class AiAgentService {
           ];
           const connectorEntries =
             allIdentifiers.length > 0
-              ? await this.connectorModel.resolveByIdentifiers(allIdentifiers, resolvedAgentId)
+              ? sharedAgentScope
+                ? await resourceConnectorModel.resolveSharedByIdentifiers(
+                    allIdentifiers,
+                    resolvedAgentId,
+                    connectorGateKeeper,
+                  )
+                : await resourceConnectorModel.resolveByIdentifiers(
+                    allIdentifiers,
+                    resolvedAgentId,
+                    connectorGateKeeper,
+                  )
               : [];
 
           if (connectorEntries.length > 0) {
-            const toolModel = new ConnectorToolModel(this.db, this.userId, this.workspaceId);
             const connectorToolsMap = new Map<string, Map<string, string>>();
             await Promise.all(
               connectorEntries.map(async (c) => {
-                const tools = await toolModel.queryByConnector(c.id);
+                const tools = await resourceConnectorToolModel.queryByConnector(c.id);
                 const perms = new Map(tools.map((t) => [t.toolName, t.permission]));
                 connectorToolsMap.set(c.identifier, perms);
               }),
@@ -3495,7 +3633,12 @@ export class AiAgentService {
         string,
         {
           id: string;
-          models: Array<{ abilities?: any; description?: string; id: string; name: string }>;
+          models: Array<{
+            abilities?: any;
+            description?: string;
+            id: string;
+            name: string;
+          }>;
           name: string;
         }
       >();
@@ -5137,7 +5280,8 @@ export class AiAgentService {
     if (topicId) {
       const topic = await this.topicModel.findById(topicId);
       const runningOp = (topic?.metadata as any)?.runningOperation as
-        { deviceId?: string; heteroType?: string; operationId?: string } | undefined;
+        | { deviceId?: string; heteroType?: string; operationId?: string }
+        | undefined;
 
       if (
         runningOp?.deviceId &&

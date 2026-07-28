@@ -1,4 +1,9 @@
+import { ConnectorModel } from '@/database/models/connector';
+import { ConnectorToolModel } from '@/database/models/connectorTool';
 import { ConnectorToolPermission } from '@/database/schemas';
+import type { LobeChatDatabase } from '@/database/type';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
+import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { mcpService } from '@/server/services/mcp';
 
 import { buildLastSyncedAtMap, scheduleStaleConnectorToolsRefresh } from './refresh';
@@ -29,10 +34,46 @@ export class ConnectorToolCallError extends Error {
  * credentials. Shared by the `connector.callTool` tRPC procedure.
  */
 export const callConnectorToolById = async (
-  params: { args?: string; identifier: string; toolName: string },
-  ctx: ConnectorToolSyncContext,
+  params: {
+    agentId?: string;
+    args?: string;
+    identifier: string;
+    toolName: string;
+  },
+  ctx: ConnectorToolSyncContext & {
+    serverDB?: LobeChatDatabase;
+    userId?: string;
+    workspaceId?: string | null;
+  },
 ): Promise<unknown> => {
-  const [connector] = await ctx.connectorModel.queryByIdentifiers([params.identifier]);
+  let connectorModel = ctx.connectorModel;
+  let connectorToolModel = ctx.connectorToolModel;
+  let isSharedAgent = false;
+
+  if (params.agentId && ctx.serverDB) {
+    const sharedScope = await resolveGlobalSharedAgentScope(ctx.serverDB, params.agentId);
+    if (sharedScope) {
+      const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
+      connectorModel = new ConnectorModel(
+        ctx.serverDB,
+        sharedScope.ownerUserId,
+        sharedScope.ownerWorkspaceId ?? undefined,
+        gateKeeper,
+      );
+      connectorToolModel = new ConnectorToolModel(
+        ctx.serverDB,
+        sharedScope.ownerUserId,
+        sharedScope.ownerWorkspaceId ?? undefined,
+      );
+      isSharedAgent = true;
+    }
+  }
+
+  const [connector] = isSharedAgent
+    ? await connectorModel.resolveSharedByIdentifiers([params.identifier], params.agentId)
+    : params.agentId
+      ? await connectorModel.resolveByIdentifiers([params.identifier], params.agentId)
+      : await connectorModel.queryByIdentifiers([params.identifier]);
   if (!connector) {
     throw new ConnectorToolCallError('NOT_FOUND', 'Connector not found');
   }
@@ -43,7 +84,7 @@ export const callConnectorToolById = async (
   // The tool MUST be present in the synced list — this is the single source of
   // truth for what is callable. Unknown names (unsynced or hand-crafted) are
   // rejected before reaching the remote server.
-  const tools = await ctx.connectorToolModel.queryByConnector(connector.id);
+  const tools = await connectorToolModel.queryByConnector(connector.id);
   const tool = tools.find((t) => t.toolName === params.toolName);
   if (!tool) {
     throw new ConnectorToolCallError(
@@ -74,13 +115,13 @@ export const callConnectorToolById = async (
         },
       ],
       buildLastSyncedAtMap(tools),
-      ctx,
+      { connectorModel, connectorToolModel },
     );
   } catch {
     // Background tool-list refresh is best-effort — never fail the tool call.
   }
 
-  const fresh = await ensureFreshConnectorToken(connector, ctx.connectorModel);
+  const fresh = await ensureFreshConnectorToken(connector, connectorModel);
 
   return mcpService.callTool({
     argsStr: params.args ?? '{}',

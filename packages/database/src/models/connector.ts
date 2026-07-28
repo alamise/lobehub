@@ -40,6 +40,9 @@ type UpdateConnectorParams = Partial<
   Omit<NewUserConnector, 'userId' | 'id' | 'createdAt' | 'updatedAt'>
 >;
 
+const sharedConnectorPredicate = sql<boolean>`coalesce((${userConnectors.metadata} ->> 'yuxiaohuanGlobalShared')::boolean, false)`;
+const GLOBAL_SHARED_MARK = 'yuxiaohuanGlobalShared';
+
 export class ConnectorModel {
   private userId: string;
   private db: LobeChatDatabase;
@@ -93,6 +96,9 @@ export class ConnectorModel {
       ),
     );
   };
+
+  private sharedScopePredicate = (agentId?: string) =>
+    and(this.scopePredicate(agentId), sharedConnectorPredicate);
 
   /**
    * Reduce candidate rows to at most one per identifier by priority within the
@@ -291,6 +297,23 @@ export class ConnectorModel {
     return Promise.all(this.pickByPriority(rows, agentId).map((r) => decryptRow(r, gateKeeper)));
   };
 
+  resolveSharedByIdentifiers = async (
+    identifiers: string[],
+    agentId?: string,
+    gateKeeper: GateKeeper | undefined = this.gateKeeper,
+  ): Promise<DecryptedConnector[]> => {
+    if (identifiers.length === 0) return [];
+
+    const rows = await this.db
+      .select()
+      .from(userConnectors)
+      .where(
+        and(this.sharedScopePredicate(agentId), inArray(userConnectors.identifier, identifiers)),
+      );
+
+    return Promise.all(this.pickByPriority(rows, agentId).map((r) => decryptRow(r, gateKeeper)));
+  };
+
   /**
    * Agent-aware variant of {@link query}: every resolvable connector in the
    * current scope, deduped by identifier with the agent-owned row winning. Used
@@ -302,6 +325,18 @@ export class ConnectorModel {
     gateKeeper: GateKeeper | undefined = this.gateKeeper,
   ): Promise<DecryptedConnector[]> => {
     const rows = await this.db.select().from(userConnectors).where(this.scopePredicate(agentId));
+
+    return Promise.all(this.pickByPriority(rows, agentId).map((r) => decryptRow(r, gateKeeper)));
+  };
+
+  resolveSharedAll = async (
+    agentId?: string,
+    gateKeeper: GateKeeper | undefined = this.gateKeeper,
+  ): Promise<DecryptedConnector[]> => {
+    const rows = await this.db
+      .select()
+      .from(userConnectors)
+      .where(this.sharedScopePredicate(agentId));
 
     return Promise.all(this.pickByPriority(rows, agentId).map((r) => decryptRow(r, gateKeeper)));
   };
@@ -408,6 +443,15 @@ export class ConnectorModel {
       .update(userConnectors)
       .set({ status, updatedAt: new Date() })
       .where(and(eq(userConnectors.id, id), this.ownership()));
+  };
+
+  setGlobalShared = async (id: string, shared: boolean): Promise<void> => {
+    const existing = await this.findById(id);
+    if (!existing) return;
+
+    await this.update(id, {
+      metadata: { ...(existing.metadata ?? {}), [GLOBAL_SHARED_MARK]: shared },
+    });
   };
 }
 

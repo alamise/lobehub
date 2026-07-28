@@ -1,6 +1,8 @@
-import { inArray, or, type SQL } from 'drizzle-orm';
+import { eq, inArray, or, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
+import type { LobeChatDatabase } from '../type';
+import { agents } from '../schemas';
 import { buildWorkspaceWhere } from './workspace';
 
 const DEFAULT_GLOBAL_SHARED_AGENT_IDS = 'agt_J8tHPinLzsfP';
@@ -43,4 +45,32 @@ export const buildReadableAgentWhere = (
   const sharedWhere = globalSharedAgentWhere(cols.id);
 
   return sharedWhere ? (or(scopedWhere, sharedWhere) as SQL) : scopedWhere;
+};
+
+export interface GlobalSharedAgentScope {
+  agentId: string;
+  isGlobalSharedAgent: true;
+  ownerUserId: string;
+  ownerWorkspaceId?: string | null;
+}
+
+export const resolveGlobalSharedAgentScope = async (
+  db: LobeChatDatabase,
+  agentId: string,
+): Promise<GlobalSharedAgentScope | null> => {
+  if (!isGlobalSharedAgentId(agentId)) return null;
+
+  const row = await db.query.agents.findFirst({
+    columns: { userId: true, workspaceId: true },
+    where: eq(agents.id, agentId),
+  });
+
+  if (!row) return null;
+
+  return {
+    agentId,
+    isGlobalSharedAgent: true,
+    ownerUserId: row.userId,
+    ownerWorkspaceId: row.workspaceId,
+  };
 };

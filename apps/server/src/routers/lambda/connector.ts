@@ -10,6 +10,7 @@ import { AgentModel } from '@/database/models/agent';
 import { ConnectorModel } from '@/database/models/connector';
 import { ConnectorToolModel } from '@/database/models/connectorTool';
 import { PluginModel } from '@/database/models/plugin';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import type { OIDCConfig } from '@/database/schemas';
 import {
   ConnectorMcpConnectionType,
@@ -34,6 +35,7 @@ import {
   saveConnectorOAuthState,
 } from '@/server/services/connector/stateStore';
 import { syncConnectorToolsById } from '@/server/services/connector/sync';
+import { isSystemAdminUser } from '@/server/services/systemAdmin';
 import { hasWorkspaceScopedPermission } from '@/server/services/workspacePermission';
 import {
   resolveConnectorAuthorizerId,
@@ -60,6 +62,55 @@ const connectorProcedure = wsCompatProcedure.use(serverDatabase).use(async (opts
   });
 });
 
+const assertSystemAdmin = async (ctx: { serverDB: LobeChatDatabase; userId: string }) => {
+  if (await isSystemAdminUser(ctx.serverDB, ctx.userId)) return;
+
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'Only system administrators can manage shared resources',
+  });
+};
+
+const resolveConnectorModels = async (
+  ctx: {
+    connectorModel: ConnectorModel;
+    connectorToolModel: ConnectorToolModel;
+    serverDB: LobeChatDatabase;
+    userId: string;
+    workspaceId?: string | null;
+  },
+  agentId?: string,
+) => {
+  if (!agentId)
+    return {
+      connectorModel: ctx.connectorModel,
+      connectorToolModel: ctx.connectorToolModel,
+      isSharedAgent: false,
+    };
+
+  const sharedScope = await resolveGlobalSharedAgentScope(ctx.serverDB, agentId);
+  if (!sharedScope)
+    return {
+      connectorModel: ctx.connectorModel,
+      connectorToolModel: ctx.connectorToolModel,
+      isSharedAgent: false,
+    };
+
+  return {
+    connectorModel: new ConnectorModel(
+      ctx.serverDB,
+      sharedScope.ownerUserId,
+      sharedScope.ownerWorkspaceId ?? undefined,
+    ),
+    connectorToolModel: new ConnectorToolModel(
+      ctx.serverDB,
+      sharedScope.ownerUserId,
+      sharedScope.ownerWorkspaceId ?? undefined,
+    ),
+    isSharedAgent: true,
+  };
+};
+
 // Writes: workspace mode requires at least the member role, gating viewers
 // out (read-only role) while personal mode passes through unrestricted.
 const connectorWriteProcedure = connectorProcedure.use(requireWorkspaceRoleWhenScoped('member'));
@@ -85,7 +136,10 @@ const oidcConfigSchema = z.object({
 const connectorCredentialsInputSchema = z.discriminatedUnion('type', [
   z.object({ token: z.string().min(1), type: z.literal('bearer') }),
   z.object({ apiKey: z.string().min(1), type: z.literal('apikey') }),
-  z.object({ headers: z.record(z.string(), z.string()), type: z.literal('header') }),
+  z.object({
+    headers: z.record(z.string(), z.string()),
+    type: z.literal('header'),
+  }),
 ]);
 
 const createConnectorSchema = z.object({
@@ -127,36 +181,47 @@ const createConnectorSchema = z.object({
 export const connectorRouter = router({
   // ── Queries ──────────────────────────────────────────────────────────────
 
-  list: connectorProcedure.query(async ({ ctx }) => {
-    const connectors = await ctx.connectorModel.query();
+  list: connectorProcedure
+    .input(z.object({ agentId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const { connectorModel, connectorToolModel, isSharedAgent } = await resolveConnectorModels(
+        ctx,
+        input?.agentId,
+      );
+      const connectors =
+        input?.agentId && isSharedAgent
+          ? await connectorModel.resolveSharedAll(input.agentId)
+          : await connectorModel.query();
 
-    // Attribution — resolve the member who authorized each connector (workspace
-    // dimension), so the profile can tag "authorized by X". The ids come from
-    // scope-checked rows the caller already sees.
-    const authorMap = await resolveUserDisplayMap(
-      ctx.serverDB,
-      connectors.map((c) => resolveConnectorAuthorizerId(c)),
-    );
+      // Attribution — resolve the member who authorized each connector (workspace
+      // dimension), so the profile can tag "authorized by X". The ids come from
+      // scope-checked rows the caller already sees.
+      const authorMap = await resolveUserDisplayMap(
+        ctx.serverDB,
+        connectors.map((c) => resolveConnectorAuthorizerId(c)),
+      );
 
-    const toolsByConnector = await Promise.all(
-      connectors.map(async (c) => {
-        const tools = await ctx.connectorToolModel.queryByConnector(c.id);
-        // Never ship decrypted OAuth tokens or the client secret to the browser.
-        const { credentials: _credentials, oidcConfig, ...rest } = c;
-        const safeOidcConfig = oidcConfig ? { ...oidcConfig, clientSecret: undefined } : oidcConfig;
-        const author = authorMap.get(resolveConnectorAuthorizerId(c) ?? '');
-        return {
-          ...rest,
-          authorizedByAvatar: author?.avatar ?? null,
-          authorizedByName: author?.name ?? null,
-          oidcConfig: safeOidcConfig,
-          tools,
-        };
-      }),
-    );
+      const toolsByConnector = await Promise.all(
+        connectors.map(async (c) => {
+          const tools = await connectorToolModel.queryByConnector(c.id);
+          // Never ship decrypted OAuth tokens or the client secret to the browser.
+          const { credentials: _credentials, oidcConfig, ...rest } = c;
+          const safeOidcConfig = oidcConfig
+            ? { ...oidcConfig, clientSecret: undefined }
+            : oidcConfig;
+          const author = authorMap.get(resolveConnectorAuthorizerId(c) ?? '');
+          return {
+            ...rest,
+            authorizedByAvatar: author?.avatar ?? null,
+            authorizedByName: author?.name ?? null,
+            oidcConfig: safeOidcConfig,
+            tools,
+          };
+        }),
+      );
 
-    return toolsByConnector;
-  }),
+      return toolsByConnector;
+    }),
 
   /**
    * List the connectors bound to a specific agent (agent-scoped rows only). The
@@ -166,7 +231,13 @@ export const connectorRouter = router({
   listByAgent: connectorProcedure
     .input(z.object({ agentId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const connectors = await ctx.connectorModel.queryByAgent(input.agentId);
+      const { connectorModel, connectorToolModel, isSharedAgent } = await resolveConnectorModels(
+        ctx,
+        input.agentId,
+      );
+      const connectors = isSharedAgent
+        ? await connectorModel.resolveSharedAll(input.agentId)
+        : await connectorModel.queryByAgent(input.agentId);
 
       // Attribution — the member who authorized each agent-scoped connector, so
       // a teammate viewing the agent sees "authorized by X" on each chip.
@@ -177,7 +248,7 @@ export const connectorRouter = router({
 
       return Promise.all(
         connectors.map(async (c) => {
-          const tools = await ctx.connectorToolModel.queryByConnector(c.id);
+          const tools = await connectorToolModel.queryByConnector(c.id);
           const { credentials: _credentials, oidcConfig, ...rest } = c;
           const safeOidcConfig = oidcConfig
             ? { ...oidcConfig, clientSecret: undefined }
@@ -260,7 +331,11 @@ export const connectorRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       const connector = await ctx.connectorModel.findById(input.id);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Edit-read returns decrypted credentials — same creator/owner gate as
       // the mutations that this edit view feeds.
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
@@ -271,7 +346,11 @@ export const connectorRouter = router({
       // to know an OAuth flow is configured (reflected via oidcConfig presence).
       const safeCredentials = credentials?.type === 'oauth2' ? null : credentials;
 
-      return { ...rest, credentials: safeCredentials, oidcConfig: safeOidcConfig };
+      return {
+        ...rest,
+        credentials: safeCredentials,
+        oidcConfig: safeOidcConfig,
+      };
     }),
 
   /**
@@ -279,7 +358,9 @@ export const connectorRouter = router({
    * The Add modal must display THIS value (not a client-derived origin) so the
    * URI the user registers matches the one used at authorize time.
    */
-  getRedirectUri: wsCompatProcedure.query(() => ({ redirectUri: getConnectorRedirectUri() })),
+  getRedirectUri: wsCompatProcedure.query(() => ({
+    redirectUri: getConnectorRedirectUri(),
+  })),
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -293,7 +374,10 @@ export const connectorRouter = router({
       const agentModel = new AgentModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined);
       const canEdit = await agentModel.existsOwnedById(agentId);
       if (!canEdit) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Agent not found or not editable' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Agent not found or not editable',
+        });
       }
     }
 
@@ -368,11 +452,18 @@ export const connectorRouter = router({
     .mutation(async ({ input, ctx }) => {
       const agentModel = new AgentModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined);
       if (!(await agentModel.existsOwnedById(input.agentId))) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Agent not found or not editable' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Agent not found or not editable',
+        });
       }
 
       const connector = await ctx.connectorModel.findById(input.connectorId);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Rebinding routes the connector's credentials to the agent — creator/owner only.
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
 
@@ -387,7 +478,9 @@ export const connectorRouter = router({
         });
       }
 
-      await ctx.connectorModel.update(input.connectorId, { agentId: input.agentId });
+      await ctx.connectorModel.update(input.connectorId, {
+        agentId: input.agentId,
+      });
       return { id: input.connectorId };
     }),
 
@@ -401,7 +494,11 @@ export const connectorRouter = router({
     .input(z.object({ connectorId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const connector = await ctx.connectorModel.findById(input.connectorId);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
       if (!connector.agentId) return { id: input.connectorId }; // already base — no-op
 
@@ -427,11 +524,18 @@ export const connectorRouter = router({
     .mutation(async ({ input, ctx }) => {
       const agentModel = new AgentModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined);
       if (!(await agentModel.existsOwnedById(input.agentId))) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Agent not found or not editable' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Agent not found or not editable',
+        });
       }
 
       const source = await ctx.connectorModel.findById(input.connectorId);
-      if (!source) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!source)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Cloning duplicates the source's encrypted credentials into a row the
       // agent owner controls — creator/owner only.
       assertWorkspaceRowManageable(ctx, source.userId, 'connector');
@@ -448,7 +552,11 @@ export const connectorRouter = router({
       }
 
       const created = await ctx.connectorModel.copyToAgent(input.connectorId, input.agentId);
-      if (!created) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!created)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       return { id: created.id };
     }),
 
@@ -462,11 +570,18 @@ export const connectorRouter = router({
     .mutation(async ({ input, ctx }) => {
       const agentModel = new AgentModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined);
       if (!(await agentModel.existsOwnedById(input.agentId))) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Agent not found or not editable' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Agent not found or not editable',
+        });
       }
 
       const connector = await ctx.connectorModel.findById(input.connectorId);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Mounting routes the source's credentials to the agent and locks the
       // row (metadata.mountedByAgentId) — creator/owner only.
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
@@ -507,12 +622,18 @@ export const connectorRouter = router({
     .input(z.object({ connectorId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const connector = await ctx.connectorModel.findById(input.connectorId);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Clearing the mount lock mutates the source row — creator/owner only.
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
 
       const { mountedByAgentId: _drop, ...restMeta } = connector.metadata ?? {};
-      await ctx.connectorModel.update(input.connectorId, { metadata: restMeta });
+      await ctx.connectorModel.update(input.connectorId, {
+        metadata: restMeta,
+      });
       return { id: input.connectorId };
     }),
 
@@ -529,11 +650,18 @@ export const connectorRouter = router({
     .input(z.object({ id: z.string().uuid(), returnTo: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       const connector = await ctx.connectorModel.findById(input.id);
-      if (!connector) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!connector)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Re-authorizing overwrites the stored OAuth credentials.
       assertWorkspaceRowManageable(ctx, connector.userId, 'connector');
       if (!connector.mcpServerUrl) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Connector has no MCP server URL' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Connector has no MCP server URL',
+        });
       }
 
       const existing: OIDCConfig = connector.oidcConfig ?? { scheme: 'dcr' };
@@ -627,7 +755,11 @@ export const connectorRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const target = await ctx.connectorModel.findById(input.id);
-      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!target)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       assertWorkspaceRowManageable(ctx, target.userId, 'connector');
 
       const { credentials, ...patch } = input.patch;
@@ -690,7 +822,11 @@ export const connectorRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const target = await ctx.connectorModel.findById(input.id);
-      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!target)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Syncing rewrites the connector's tool rows and refreshes OAuth tokens —
       // an edit-class operation, so it gets the same creator/owner gate as
       // update/delete/reset.
@@ -716,6 +852,7 @@ export const connectorRouter = router({
       z.object({
         args: z.string().optional(),
         identifier: z.string().min(1),
+        agentId: z.string().optional(),
         toolName: z.string().min(1),
       }),
     )
@@ -724,7 +861,11 @@ export const connectorRouter = router({
         return await callConnectorToolById(input, ctx);
       } catch (err: any) {
         if (err instanceof ConnectorToolCallError) {
-          throw new TRPCError({ cause: err, code: err.code, message: err.message });
+          throw new TRPCError({
+            cause: err,
+            code: err.code,
+            message: err.message,
+          });
         }
         throw new TRPCError({
           cause: err,
@@ -741,7 +882,11 @@ export const connectorRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const target = await ctx.connectorModel.findById(input.id);
-      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector not found' });
+      if (!target)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
       // Permission gates decide what auto-runs for the whole workspace.
       assertWorkspaceRowManageable(ctx, target.userId, 'connector');
 
@@ -752,6 +897,23 @@ export const connectorRouter = router({
         ),
       );
       return { toolCount: tools.length };
+    }),
+
+  setShared: connectorWriteProcedure
+    .input(z.object({ id: z.string().uuid(), shared: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await assertSystemAdmin(ctx);
+
+      const target = await ctx.connectorModel.findById(input.id);
+      if (!target)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector not found',
+        });
+      assertWorkspaceRowManageable(ctx, target.userId, 'connector');
+
+      await ctx.connectorModel.setGlobalShared(input.id, input.shared);
+      return { id: input.id, shared: input.shared };
     }),
 
   updateToolPermission: connectorWriteProcedure
@@ -767,7 +929,11 @@ export const connectorRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const tool = await ctx.connectorToolModel.findById(input.toolId);
-      if (!tool) throw new TRPCError({ code: 'NOT_FOUND', message: 'Connector tool not found' });
+      if (!tool)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Connector tool not found',
+        });
       const owner = await ctx.connectorModel.findById(tool.userConnectorId);
       assertWorkspaceRowManageable(ctx, owner?.userId, 'connector');
 
@@ -986,7 +1152,10 @@ async function upsertConnectorEntry(
   }
 
   if (!canWrite) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Viewers cannot install connectors' });
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Viewers cannot install connectors',
+    });
   }
 
   const created = await ctx.connectorModel.create({

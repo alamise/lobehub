@@ -1,15 +1,17 @@
 import { getComposioAppByIdentifier, getLobehubSkillProviderById } from '@lobechat/const';
 import { Tooltip } from '@lobehub/ui';
 import { Button, confirmModal } from '@lobehub/ui/base-ui';
-import { App } from 'antd';
+import { App, Switch } from 'antd';
 import { PencilIcon, RefreshCwIcon, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import useSWR from 'swr';
 
 import type { ConnectorToolPermission } from '@/database/schemas';
 import { ConnectorSourceType } from '@/database/schemas';
 import { useResourceManageable } from '@/hooks/useResourceManageable';
+import { userService } from '@/services/user';
 import { useToolStore } from '@/store/tool';
 import { connectorSelectors } from '@/store/tool/slices/connector';
 
@@ -72,10 +74,15 @@ const ConnectorDetail = memo<ConnectorDetailProps>(
     const uninstallMCPPlugin = useToolStore((s) => s.uninstallMCPPlugin);
     const fetchConnectors = useToolStore((s) => s.fetchConnectors);
     const updateToolPermission = useToolStore((s) => s.updateToolPermission);
+    const setConnectorShared = useToolStore((s) => s.setConnectorShared);
+    const { data: adminState } = useSWR('user-system-admin-state', () =>
+      userService.getSystemAdminState(),
+    );
 
     const isMcpConnector = connector?.sourceType === ConnectorSourceType.custom;
     const isBuiltin = connector?.sourceType === ConnectorSourceType.builtin;
     const isMarketplace = connector?.sourceType === ConnectorSourceType.marketplace;
+    const isShared = !!connector?.metadata?.yuxiaohuanGlobalShared;
 
     // Only the creator or a workspace owner may manage this connector — the
     // server enforces the same rule, this keeps the UI honest about it.
@@ -228,6 +235,26 @@ const ConnectorDetail = memo<ConnectorDetailProps>(
         >
           <div style={{ fontSize: 14, fontWeight: 500 }}>{connectorName}</div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {adminState?.isSystemAdmin && (
+              <Switch
+                checked={isShared}
+                checkedChildren={t('connector.shared', 'Shared')}
+                size="small"
+                unCheckedChildren={t('connector.private', 'Private')}
+                onChange={async (checked) => {
+                  try {
+                    await setConnectorShared(connectorId, checked);
+                    message.success(
+                      checked
+                        ? t('connector.shareSuccess', 'Connector shared')
+                        : t('connector.unshareSuccess', 'Connector unshared'),
+                    );
+                  } catch {
+                    message.error(t('connector.shareFailed', 'Failed to update sharing'));
+                  }
+                }}
+              />
+            )}
             {/* Reset permissions: restore all tools to auto (fully open) */}
             <ManageTooltip title={manageTooltip}>
               <Button

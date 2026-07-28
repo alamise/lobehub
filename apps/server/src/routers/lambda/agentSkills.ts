@@ -7,10 +7,12 @@ import { withScopedPermission } from '@/business/server/trpc-middlewares/rbacPer
 import { wsCompatProcedure } from '@/business/server/trpc-middlewares/workspaceAuth';
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { FileModel } from '@/database/models/file';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import { router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { FileService } from '@/server/services/file';
 import { MarketService } from '@/server/services/market';
+import { isSystemAdminUser } from '@/server/services/systemAdmin';
 import {
   SkillImporter,
   SkillImportError,
@@ -59,6 +61,15 @@ const handleSkillImportError = (error: unknown): never => {
   throw error;
 };
 
+const assertSystemAdmin = async (ctx: { serverDB: any; userId: string }) => {
+  if (await isSystemAdminUser(ctx.serverDB, ctx.userId)) return;
+
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'Only system administrators can manage shared resources',
+  });
+};
+
 // ===== Procedures with Context =====
 
 // Reads: workspace-aware, any member can read. In personal mode the request
@@ -78,6 +89,37 @@ const skillProcedure = wsCompatProcedure.use(serverDatabase).use(async (opts) =>
     },
   });
 });
+
+const resolveSkillModel = async (
+  ctx: {
+    serverDB: any;
+    userId: string;
+    workspaceId?: string;
+  },
+  agentId?: string,
+) => {
+  if (!agentId)
+    return {
+      isSharedAgent: false,
+      skillModel: new AgentSkillModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined),
+    };
+
+  const sharedScope = await resolveGlobalSharedAgentScope(ctx.serverDB, agentId);
+  if (!sharedScope)
+    return {
+      isSharedAgent: false,
+      skillModel: new AgentSkillModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined),
+    };
+
+  return {
+    isSharedAgent: true,
+    skillModel: new AgentSkillModel(
+      ctx.serverDB,
+      sharedScope.ownerUserId,
+      sharedScope.ownerWorkspaceId ?? undefined,
+    ),
+  };
+};
 
 // Writes: workspace mode goes through RBAC (`agent:update:all | :owner`),
 // gating viewers out while letting members and owners install/edit skills.
@@ -157,14 +199,20 @@ export const agentSkillsRouter = router({
 
   // ===== Query =====
 
-  getById: skillProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
-    return ctx.skillModel.findById(input.id);
-  }),
+  getById: skillProcedure
+    .input(z.object({ id: z.string(), agentId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      return isSharedAgent ? skillModel.findSharedById(input.id) : skillModel.findById(input.id);
+    }),
 
   getByIdWithZipUrl: skillProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string(), agentId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      const skill = await ctx.skillModel.findById(input.id);
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      const skill = isSharedAgent
+        ? await skillModel.findSharedById(input.id)
+        : await skillModel.findById(input.id);
       if (!skill) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Skill not found' });
       }
@@ -183,14 +231,22 @@ export const agentSkillsRouter = router({
     }),
 
   getByIdentifier: skillProcedure
-    .input(z.object({ identifier: z.string() }))
+    .input(z.object({ identifier: z.string(), agentId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      return ctx.skillModel.findByIdentifier(input.identifier);
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      return isSharedAgent
+        ? skillModel.findSharedByIdentifier(input.identifier)
+        : skillModel.findByIdentifier(input.identifier);
     }),
 
-  getByName: skillProcedure.input(z.object({ name: z.string() })).query(async ({ ctx, input }) => {
-    return ctx.skillModel.findByName(input.name);
-  }),
+  getByName: skillProcedure
+    .input(z.object({ name: z.string(), agentId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      return isSharedAgent
+        ? skillModel.findSharedByName(input.name)
+        : skillModel.findByName(input.name);
+    }),
 
   importFromGitHub: skillWriteProcedure
     .input(
@@ -247,22 +303,35 @@ export const agentSkillsRouter = router({
     .input(
       z
         .object({
+          agentId: z.string().optional(),
           source: z.enum(['builtin', 'market', 'user']).optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input?.agentId);
       if (input?.source) {
-        return ctx.skillModel.listBySource(input.source);
+        return skillModel.listBySource(input.source, {
+          sharedOnly: isSharedAgent,
+        });
       }
 
-      return ctx.skillModel.findAll();
+      return skillModel.findAll({ sharedOnly: isSharedAgent });
     }),
 
   listResources: skillResourceProcedure
-    .input(z.object({ id: z.string(), includeContent: z.boolean().optional() }))
+    .input(
+      z.object({
+        id: z.string(),
+        includeContent: z.boolean().optional(),
+        agentId: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      const skill = await ctx.skillModel.findById(input.id);
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      const skill = isSharedAgent
+        ? await skillModel.findSharedById(input.id)
+        : await skillModel.findById(input.id);
       if (!skill) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Skill not found' });
       }
@@ -278,17 +347,24 @@ export const agentSkillsRouter = router({
     .input(
       z.object({
         id: z.string(),
+        agentId: z.string().optional(),
         path: z.string(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const skill = await ctx.skillModel.findById(input.id);
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      const skill = isSharedAgent
+        ? await skillModel.findSharedById(input.id)
+        : await skillModel.findById(input.id);
       if (!skill) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Skill not found' });
       }
 
       if (!skill.resources || Object.keys(skill.resources).length === 0) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Skill has no resources' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Skill has no resources',
+        });
       }
 
       try {
@@ -302,9 +378,24 @@ export const agentSkillsRouter = router({
       }
     }),
 
-  search: skillProcedure.input(z.object({ query: z.string() })).query(async ({ ctx, input }) => {
-    return ctx.skillModel.search(input.query);
-  }),
+  search: skillProcedure
+    .input(z.object({ query: z.string(), agentId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const { isSharedAgent, skillModel } = await resolveSkillModel(ctx, input.agentId);
+      return skillModel.search(input.query, { sharedOnly: isSharedAgent });
+    }),
+
+  setShared: skillWriteProcedure
+    .input(z.object({ id: z.string(), shared: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertSystemAdmin(ctx);
+
+      const target = await ctx.skillModel.findById(input.id);
+      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Skill not found' });
+      assertWorkspaceRowManageable(ctx, target.userId, 'skill');
+
+      return ctx.skillModel.setGlobalShared(input.id, input.shared);
+    }),
 
   // ===== Update =====
 

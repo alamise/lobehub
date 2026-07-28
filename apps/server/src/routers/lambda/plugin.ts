@@ -5,10 +5,21 @@ import { z } from 'zod';
 import { withScopedPermission } from '@/business/server/trpc-middlewares/rbacPermission';
 import { wsCompatProcedure } from '@/business/server/trpc-middlewares/workspaceAuth';
 import { PluginModel } from '@/database/models/plugin';
+import { resolveGlobalSharedAgentScope } from '@/database/utils/globalSharedAgent';
 import { router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { isSystemAdminUser } from '@/server/services/systemAdmin';
 
 import { assertWorkspaceRowManageable } from './_helpers/assertWorkspaceRowManageable';
+
+const assertSystemAdmin = async (ctx: { serverDB: any; userId: string }) => {
+  if (await isSystemAdminUser(ctx.serverDB, ctx.userId)) return;
+
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'Only system administrators can manage shared resources',
+  });
+};
 
 const pluginProcedure = wsCompatProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
@@ -18,6 +29,31 @@ const pluginProcedure = wsCompatProcedure.use(serverDatabase).use(async (opts) =
     ctx: { pluginModel: new PluginModel(ctx.serverDB, ctx.userId, wsId) },
   });
 });
+
+const resolvePluginModel = async (
+  ctx: { serverDB: any; userId: string; workspaceId?: string | null },
+  agentId?: string,
+) => {
+  if (!agentId)
+    return {
+      isSharedAgent: false,
+      pluginModel: new PluginModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined),
+    };
+  const sharedScope = await resolveGlobalSharedAgentScope(ctx.serverDB, agentId);
+  if (!sharedScope)
+    return {
+      isSharedAgent: false,
+      pluginModel: new PluginModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined),
+    };
+  return {
+    isSharedAgent: true,
+    pluginModel: new PluginModel(
+      ctx.serverDB,
+      sharedScope.ownerUserId,
+      sharedScope.ownerWorkspaceId ?? undefined,
+    ),
+  };
+};
 
 export const pluginRouter = router({
   createOrInstallPlugin: pluginProcedure
@@ -50,7 +86,9 @@ export const pluginRouter = router({
       // or we can just update the plugin manifest — but only the creator (or a
       // workspace owner) may overwrite an existing row's manifest.
       assertWorkspaceRowManageable(ctx, result.userId, 'plugin');
-      await ctx.pluginModel.update(input.identifier, { manifest: input.manifest });
+      await ctx.pluginModel.update(input.identifier, {
+        manifest: input.manifest,
+      });
     }),
 
   createPlugin: pluginProcedure
@@ -74,11 +112,13 @@ export const pluginRouter = router({
       return data.identifier;
     }),
 
-  getPlugins: wsCompatProcedure.use(serverDatabase).query(async ({ ctx }): Promise<LobeTool[]> => {
-    const pluginModel = new PluginModel(ctx.serverDB, ctx.userId, ctx.workspaceId ?? undefined);
-
-    return pluginModel.query();
-  }),
+  getPlugins: wsCompatProcedure
+    .use(serverDatabase)
+    .input(z.object({ agentId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }): Promise<LobeTool[]> => {
+      const { isSharedAgent, pluginModel } = await resolvePluginModel(ctx, input?.agentId);
+      return isSharedAgent ? pluginModel.queryShared() : pluginModel.query();
+    }),
 
   removePlugin: pluginProcedure
     .use(withScopedPermission('agent:update'))
@@ -89,6 +129,19 @@ export const pluginRouter = router({
       if (!target) return;
       assertWorkspaceRowManageable(ctx, target.userId, 'plugin');
       return ctx.pluginModel.delete(input.id);
+    }),
+
+  setShared: pluginProcedure
+    .use(withScopedPermission('agent:update'))
+    .input(z.object({ id: z.string(), shared: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await assertSystemAdmin(ctx);
+
+      const target = await ctx.pluginModel.findById(input.id);
+      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Plugin not found' });
+      assertWorkspaceRowManageable(ctx, target.userId, 'plugin');
+
+      return ctx.pluginModel.setGlobalShared(input.id, input.shared);
     }),
 
   updatePlugin: pluginProcedure

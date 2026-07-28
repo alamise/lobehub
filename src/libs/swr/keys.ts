@@ -26,7 +26,9 @@ import {
   notebookSWRKeys,
 } from '@/services/document/swrKeys';
 
-type KeyFactory<A extends unknown[]> = ((...args: A) => readonly unknown[]) & { root: string };
+type KeyFactory<A extends unknown[]> = ((...args: A) => readonly unknown[]) & {
+  root: string;
+};
 
 /** Define a key factory carrying its namespace root (for `mutate` matchers). */
 const def = <A extends unknown[]>(
@@ -647,14 +649,21 @@ export const userMemoryKeys = {
 
 // ---- tool (skills / plugins / builtin / mcp / composio stores) -------------
 export const toolKeys = {
-  agentSkillDetail: def('tool:agentSkillDetail', (id: string) => ['tool:agentSkillDetail', id]),
-  agentSkills: def('tool:agentSkills', () => ['tool:agentSkills']),
+  agentSkillDetail: def('tool:agentSkillDetail', (id: string, agentId?: string) => [
+    'tool:agentSkillDetail',
+    id,
+    agentId,
+  ]),
+  agentSkills: def('tool:agentSkills', (agentId?: string) => ['tool:agentSkills', agentId]),
   composioAppTools: def('tool:composioAppTools', (appSlug: string) => [
     'tool:composioAppTools',
     appSlug,
   ]),
   composioConnections: def('tool:composioConnections', () => ['tool:composioConnections']),
-  installedPlugins: def('tool:installedPlugins', () => ['tool:installedPlugins']),
+  installedPlugins: def('tool:installedPlugins', (agentId?: string) => [
+    'tool:installedPlugins',
+    agentId,
+  ]),
   lobehubSkillConnections: def('tool:lobehubSkillConnections', () => [
     'tool:lobehubSkillConnections',
   ]),

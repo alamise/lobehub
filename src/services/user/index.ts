@@ -56,6 +56,10 @@ export class UserService {
     return lambdaClient.user.getUserSSOProviders.query();
   };
 
+  getSystemAdminState = async (): Promise<{ isSystemAdmin: boolean }> => {
+    return lambdaClient.user.getSystemAdminState.query();
+  };
+
   getOrCreateOnboardingState = async (): Promise<{
     agentId: string;
     agentOnboarding: UserAgentOnboarding;

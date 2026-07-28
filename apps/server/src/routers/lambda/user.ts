@@ -55,6 +55,7 @@ import { FileS3 } from '@/server/modules/S3';
 import { AgentDocumentsService } from '@/server/services/agentDocuments';
 import { FileService } from '@/server/services/file';
 import { OnboardingService } from '@/server/services/onboarding';
+import { isSystemAdminUser } from '@/server/services/systemAdmin';
 import {
   createUnderstandingService,
   type UnderstandingService,
@@ -242,6 +243,10 @@ const understandingServiceProcedure = personalUnderstandingProcedure.use(async (
 });
 
 export const userRouter = router({
+  getSystemAdminState: userProcedure.query(async ({ ctx }) => ({
+    isSystemAdmin: await isSystemAdminUser(ctx.serverDB, ctx.userId),
+  })),
+
   getUserActivitySummary: userProcedure.query(async ({ ctx }) => {
     return ctx.userModel.getUserActivitySummary();
   }),
@@ -668,7 +673,11 @@ export const userRouter = router({
         profile: 'default',
       });
 
-      return { applied: patched.applied, id: result.document.id, type: 'persona' as const };
+      return {
+        applied: patched.applied,
+        id: result.document.id,
+        type: 'persona' as const,
+      };
     }),
 
   resetAgentOnboarding: userProcedure.mutation(async ({ ctx }) => {

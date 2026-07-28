@@ -484,7 +484,9 @@ export const useControls = ({ closeDropdown }: { closeDropdown?: () => void } = 
   // app keeps active for every conversation. Mode-aware: in manual skill-activate mode the
   // discovery tools the engine strips (activator, skill-store) are dropped from the list.
   const fixedDisplayList = useToolStore(
-    builtinToolSelectors.fixedDisplayMetaList({ isManualMode: isManualSkillMode }),
+    builtinToolSelectors.fixedDisplayMetaList({
+      isManualMode: isManualSkillMode,
+    }),
     isEqual,
   );
   const plugins = useAgentStore((s) => agentByIdSelectors.getAgentPluginsById(agentId)(s));
@@ -793,11 +795,10 @@ export const useControls = ({ closeDropdown }: { closeDropdown?: () => void } = 
 
   // Custom connectors (user-added OAuth MCP servers) from the connector store
   const customConnectors = useToolStore(connectorSelectors.customConnectors, isEqual);
-  const isConnectorsInit = useToolStore((s) => s.isConnectorsInit);
   const fetchConnectors = useToolStore((s) => s.fetchConnectors);
   useEffect(() => {
-    if (!isConnectorsInit) fetchConnectors();
-  }, [isConnectorsInit, fetchConnectors]);
+    fetchConnectors(agentId);
+  }, [agentId, fetchConnectors]);
 
   const [
     useFetchUserComposioConnections,
@@ -811,9 +812,9 @@ export const useControls = ({ closeDropdown }: { closeDropdown?: () => void } = 
     s.useFetchAgentSkills,
   ]);
 
-  useFetchInstalledPlugins();
+  useFetchInstalledPlugins(agentId);
   useFetchUninstalledBuiltinTools(true);
-  useFetchAgentSkills(true);
+  useFetchAgentSkills(true, agentId);
   useCheckPluginsIsInstalled(plugins);
 
   // Load user's Composio integrations via SWR (from database)
@@ -1322,7 +1323,9 @@ export const useControls = ({ closeDropdown }: { closeDropdown?: () => void } = 
 
         return createManagedSkillItem({
           badge: <Icon icon={McpIcon} size={12} />,
-          configureConfig: { onConfigure: () => setEditingConnectorDbId(connector.id) },
+          configureConfig: {
+            onConfigure: () => setEditingConnectorDbId(connector.id),
+          },
           deleteConfig: {
             displayName: title,
             onDelete: async () => {

@@ -41,38 +41,52 @@ class AgentSkillService {
 
   // ===== Query =====
 
-  async getById(id: string): Promise<SkillItem | undefined> {
-    return lambdaClient.agentSkills.getById.query({ id });
+  async getById(id: string, agentId?: string): Promise<SkillItem | undefined> {
+    return lambdaClient.agentSkills.getById.query({ agentId, id });
   }
 
-  async getZipUrl(id: string): Promise<{ name: string; url: string | null }> {
-    return lambdaClient.agentSkills.getByIdWithZipUrl.query({ id });
+  async getZipUrl(id: string, agentId?: string): Promise<{ name: string; url: string | null }> {
+    return lambdaClient.agentSkills.getByIdWithZipUrl.query({ agentId, id });
   }
 
-  async getByIdentifier(identifier: string): Promise<SkillItem | undefined> {
-    return lambdaClient.agentSkills.getByIdentifier.query({ identifier });
+  async getByIdentifier(identifier: string, agentId?: string): Promise<SkillItem | undefined> {
+    return lambdaClient.agentSkills.getByIdentifier.query({
+      agentId,
+      identifier,
+    });
   }
 
-  async getByName(name: string): Promise<SkillItem | undefined> {
-    return lambdaClient.agentSkills.getByName.query({ name });
+  async getByName(name: string, agentId?: string): Promise<SkillItem | undefined> {
+    return lambdaClient.agentSkills.getByName.query({ agentId, name });
   }
 
-  async list(source?: SkillSource): Promise<{ data: SkillListItem[]; total: number }> {
-    return lambdaClient.agentSkills.list.query(source ? { source } : undefined);
+  async list(
+    source?: SkillSource,
+    agentId?: string,
+  ): Promise<{ data: SkillListItem[]; total: number }> {
+    return lambdaClient.agentSkills.list.query(source || agentId ? { agentId, source } : undefined);
   }
 
-  async search(query: string): Promise<{ data: SkillListItem[]; total: number }> {
-    return lambdaClient.agentSkills.search.query({ query });
+  async search(query: string, agentId?: string): Promise<{ data: SkillListItem[]; total: number }> {
+    return lambdaClient.agentSkills.search.query({ agentId, query });
   }
 
   // ===== Resources =====
 
-  async listResources(id: string, includeContent?: boolean): Promise<SkillResourceTreeNode[]> {
-    return lambdaClient.agentSkills.listResources.query({ id, includeContent });
+  async listResources(
+    id: string,
+    includeContent?: boolean,
+    agentId?: string,
+  ): Promise<SkillResourceTreeNode[]> {
+    return lambdaClient.agentSkills.listResources.query({
+      agentId,
+      id,
+      includeContent,
+    });
   }
 
-  async readResource(id: string, path: string): Promise<SkillResourceContent> {
-    return lambdaClient.agentSkills.readResource.query({ id, path });
+  async readResource(id: string, path: string, agentId?: string): Promise<SkillResourceContent> {
+    return lambdaClient.agentSkills.readResource.query({ agentId, id, path });
   }
 
   // ===== Update =====
@@ -83,6 +97,10 @@ class AgentSkillService {
       id: params.id,
       manifest: params.manifest,
     });
+  }
+
+  async setShared(id: string, shared: boolean): Promise<SkillItem | undefined> {
+    return lambdaClient.agentSkills.setShared.mutate({ id, shared });
   }
 
   // ===== Delete =====

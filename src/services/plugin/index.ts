@@ -16,8 +16,8 @@ export class PluginService {
     await lambdaClient.plugin.createOrInstallPlugin.mutate(plugin);
   };
 
-  getInstalledPlugins = (): Promise<LobeTool[]> => {
-    return lambdaClient.plugin.getPlugins.query();
+  getInstalledPlugins = (agentId?: string): Promise<LobeTool[]> => {
+    return lambdaClient.plugin.getPlugins.query(agentId ? { agentId } : undefined);
   };
 
   uninstallPlugin = async (identifier: string): Promise<void> => {
@@ -25,7 +25,10 @@ export class PluginService {
   };
 
   createCustomPlugin = async (customPlugin: LobeToolCustomPlugin): Promise<void> => {
-    await lambdaClient.plugin.createPlugin.mutate({ ...customPlugin, type: 'customPlugin' });
+    await lambdaClient.plugin.createPlugin.mutate({
+      ...customPlugin,
+      type: 'customPlugin',
+    });
   };
 
   updatePlugin = async (id: string, value: Partial<LobeToolCustomPlugin>): Promise<void> => {
@@ -43,6 +46,10 @@ export class PluginService {
 
   updatePluginSettings = async (id: string, settings: any, signal?: AbortSignal): Promise<void> => {
     await lambdaClient.plugin.updatePlugin.mutate({ id, settings }, { signal });
+  };
+
+  setShared = async (id: string, shared: boolean): Promise<void> => {
+    await lambdaClient.plugin.setShared.mutate({ id, shared });
   };
 }
 

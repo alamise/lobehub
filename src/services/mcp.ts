@@ -57,8 +57,10 @@ class MCPService {
       (connector.mcpServerUrl || connector.mcpConnectionType === 'stdio')
     ) {
       const { lambdaClient } = await import('@/libs/trpc/client');
+      const { getChatStoreState } = await import('@/store/chat');
+      const agentId = getChatStoreState().activeAgentId;
       return (await lambdaClient.connector.callTool.mutate(
-        { args, identifier, toolName: apiName },
+        { agentId, args, identifier, toolName: apiName },
         { signal },
       )) as MCPToolCallResult;
     }
@@ -245,7 +247,9 @@ class MCPService {
     }
 
     // Otherwise use toolsClient (via server relay)
-    return toolsClient.mcp.getStreamableMcpServerManifest.query(params, { signal });
+    return toolsClient.mcp.getStreamableMcpServerManifest.query(params, {
+      signal,
+    });
   }
 
   async getStdioMcpServerManifest(

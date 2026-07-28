@@ -19,8 +19,8 @@ export class ConnectorActionImpl {
     this.#get = get;
   }
 
-  fetchConnectors = async (): Promise<void> => {
-    const data = await lambdaClient.connector.list.query();
+  fetchConnectors = async (agentId?: string): Promise<void> => {
+    const data = await lambdaClient.connector.list.query(agentId ? { agentId } : undefined);
     this.#set({ connectors: data as any, isConnectorsInit: true }, false, 'fetchConnectors');
   };
 
@@ -70,7 +70,10 @@ export class ConnectorActionImpl {
 
   /** Copy a user connector into an agent-owned, independently editable row. */
   copyConnectorToAgent = async (connectorId: string, agentId: string): Promise<string> => {
-    const { id } = await lambdaClient.connector.copyToAgent.mutate({ agentId, connectorId });
+    const { id } = await lambdaClient.connector.copyToAgent.mutate({
+      agentId,
+      connectorId,
+    });
     await this.fetchAgentConnectors(agentId);
     return id;
   };
@@ -188,6 +191,11 @@ export class ConnectorActionImpl {
     await this.#refreshConnectorLists();
   };
 
+  setConnectorShared = async (id: string, shared: boolean): Promise<void> => {
+    await lambdaClient.connector.setShared.mutate({ id, shared });
+    await this.#refreshConnectorLists();
+  };
+
   /**
    * Sync tools from a client-provided list (for Lobehub OAuth skills / Composio
    * that already have their tool list available on the client side).
@@ -197,7 +205,11 @@ export class ConnectorActionImpl {
     identifier: string;
     name: string;
     sourceType: 'builtin' | 'custom' | 'marketplace';
-    tools: Array<{ description?: string; inputSchema?: Record<string, unknown>; toolName: string }>;
+    tools: Array<{
+      description?: string;
+      inputSchema?: Record<string, unknown>;
+      toolName: string;
+    }>;
   }): Promise<string> => {
     const result = await lambdaClient.connector.syncToolsFromClient.mutate(params);
     await this.fetchConnectors();
@@ -210,7 +222,9 @@ export class ConnectorActionImpl {
    * Returns the connectorId.
    */
   syncBuiltinTool = async (identifier: string): Promise<string> => {
-    const result = await lambdaClient.connector.syncBuiltinTool.mutate({ identifier });
+    const result = await lambdaClient.connector.syncBuiltinTool.mutate({
+      identifier,
+    });
     await this.fetchConnectors();
     return result.connectorId;
   };
@@ -222,7 +236,9 @@ export class ConnectorActionImpl {
    * an MCP endpoint (those go through the frontend migration flow instead).
    */
   syncPluginTools = async (identifier: string): Promise<string | null> => {
-    const result = await lambdaClient.connector.syncPluginTools.mutate({ identifier });
+    const result = await lambdaClient.connector.syncPluginTools.mutate({
+      identifier,
+    });
     await this.fetchConnectors();
     return result.connectorId;
   };
@@ -234,7 +250,9 @@ export class ConnectorActionImpl {
     // Optimistic update — patch the tool in whichever list holds it (base
     // connectors and agent-bound connectors are separate arrays).
     const patchTools = <
-      T extends { tools: Array<{ id: string; permission: ConnectorToolPermission }> },
+      T extends {
+        tools: Array<{ id: string; permission: ConnectorToolPermission }>;
+      },
     >(
       list: T[],
     ): T[] =>
@@ -252,7 +270,10 @@ export class ConnectorActionImpl {
     );
 
     try {
-      await lambdaClient.connector.updateToolPermission.mutate({ permission, toolId });
+      await lambdaClient.connector.updateToolPermission.mutate({
+        permission,
+        toolId,
+      });
     } catch {
       // Roll back on error
       await this.#refreshConnectorLists();
