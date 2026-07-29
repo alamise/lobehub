@@ -1,27 +1,118 @@
 'use client';
 
-import { Accordion, AccordionItem, Flexbox, Icon, Text } from '@lobehub/ui';
-import { memo, useMemo } from 'react';
+import { Center, Flexbox, Icon, Text } from '@lobehub/ui';
+import { createStaticStyles } from 'antd-style';
+import { ChevronRight } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 
 import {
+  type BusinessNavGroup,
   businessNavGroups,
+  type BusinessNavLeafItem,
   businessNavMiddleItems,
   businessNavOfficeGroup,
   businessNavTopItems,
   SHARED_AGENT_PATH,
-  type BusinessNavGroup,
-  type BusinessNavLeafItem,
 } from '@/features/BusinessNavigation/config';
-import NavItem from '@/features/NavPanel/components/NavItem';
 import { useWorkspaceAwareNavigate } from '@/features/Workspace/useWorkspaceAwareNavigate';
-import WorkspaceLink from '@/features/Workspace/WorkspaceLink';
-import { isModifierClick } from '@/utils/navigation';
 
-const defaultExpandedKeys = [
-  ...businessNavGroups.map((group) => group.key),
-  businessNavOfficeGroup.key,
-];
+const styles = createStaticStyles(({ css }) => ({
+  childItem: css`
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    min-height: 36px;
+    padding-block: 7px;
+    padding-inline: 48px 12px;
+    border: 0;
+    border-radius: 10px;
+
+    font-size: 14px;
+    font-weight: 600;
+    color: #8fa0ba;
+    text-align: start;
+
+    background: transparent;
+
+    transition:
+      color 0.18s ease,
+      background 0.18s ease;
+
+    &:hover {
+      color: #d7e3f3;
+      background: rgb(255 255 255 / 6%);
+    }
+
+    &[data-active='true'] {
+      color: #35d39f;
+      background: rgb(16 185 129 / 10%);
+    }
+  `,
+  groupChildren: css`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    padding-block: 4px 6px;
+    padding-inline: 0;
+  `,
+  menuButton: css`
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-height: 46px;
+    padding-block: 0;
+    padding-inline: 16px;
+    border: 0;
+    border-radius: 12px;
+
+    color: #92a2ba;
+    text-align: start;
+
+    background: transparent;
+
+    transition:
+      color 0.18s ease,
+      background 0.18s ease,
+      transform 0.18s ease;
+
+    &:hover {
+      color: #fff;
+      background: rgb(255 255 255 / 7%);
+    }
+
+    &[data-active='true'] {
+      color: #fff;
+      background: #0b9f70;
+      box-shadow: 0 10px 22px rgb(0 0 0 / 14%);
+    }
+  `,
+  nav: css`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+
+    min-height: 100%;
+    padding-block: 28px;
+    padding-inline: 18px;
+
+    background: #0f1b2d;
+  `,
+  rowIcon: css`
+    flex: none;
+    width: 20px;
+    color: currentcolor;
+  `,
+}));
 
 const normalizePathname = (pathname: string) => {
   const withoutTrailingSlash =
@@ -40,73 +131,117 @@ const isActivePath = (pathname: string, targetPath: string) => {
   return current === targetPath || current.startsWith(`${targetPath}/`);
 };
 
-const BusinessMenuLink = memo<{ item: BusinessNavLeafItem }>(({ item }) => {
-  const { pathname } = useLocation();
-  const navigate = useWorkspaceAwareNavigate();
-  const active = isActivePath(pathname, item.path);
+const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
+  ({ item, nested }) => {
+    const { pathname } = useLocation();
+    const navigate = useWorkspaceAwareNavigate();
+    const active = isActivePath(pathname, item.path);
 
-  return (
-    <WorkspaceLink
-      to={item.path}
-      onClick={(e) => {
-        if (isModifierClick(e)) return;
-        e.preventDefault();
-        navigate(item.path);
-      }}
-    >
-      <NavItem active={active} icon={item.icon} title={item.title} />
-    </WorkspaceLink>
-  );
-});
+    if (nested) {
+      return (
+        <button
+          className={styles.childItem}
+          data-active={active}
+          title={item.title}
+          type="button"
+          onClick={() => navigate(item.path)}
+        >
+          {item.title}
+        </button>
+      );
+    }
 
-BusinessMenuLink.displayName = 'BusinessMenuLink';
+    const ItemIcon = item.icon;
+
+    return (
+      <button
+        className={styles.menuButton}
+        data-active={active}
+        title={item.title}
+        type="button"
+        onClick={() => navigate(item.path)}
+      >
+        <Flexbox horizontal align="center" gap={12} style={{ minWidth: 0 }}>
+          {ItemIcon && (
+            <Center className={styles.rowIcon}>
+              <Icon icon={ItemIcon} size={18} />
+            </Center>
+          )}
+          <Text ellipsis color="currentColor" fontSize={16} weight={700}>
+            {item.title.replaceAll(' ', '')}
+          </Text>
+        </Flexbox>
+      </button>
+    );
+  },
+);
+
+BusinessMenuLeaf.displayName = 'BusinessMenuLeaf';
 
 const BusinessMenuGroup = memo<{ group: BusinessNavGroup }>(({ group }) => {
-  const items = useMemo(
-    () => group.items.map((item) => <BusinessMenuLink item={item} key={item.key} />),
+  const { pathname } = useLocation();
+  const navigate = useWorkspaceAwareNavigate();
+  const isGroupActive = group.items.some((item) => isActivePath(pathname, item.path));
+  const [expanded, setExpanded] = useState(isGroupActive);
+  const GroupIcon = group.icon;
+
+  const firstPath = group.items[0]?.path;
+  const children = useMemo(
+    () => group.items.map((item) => <BusinessMenuLeaf nested item={item} key={item.key} />),
     [group.items],
   );
 
   return (
-    <AccordionItem
-      itemKey={group.key}
-      paddingBlock={4}
-      paddingInline={'8px 4px'}
-      title={
-        <Flexbox horizontal align="center" gap={8}>
-          <Icon icon={group.icon} size={16} />
-          <Text ellipsis fontSize={12} type="secondary" weight={500}>
-            {group.title}
+    <div>
+      <button
+        className={styles.menuButton}
+        data-active={false}
+        title={group.title}
+        type="button"
+        onClick={() => {
+          setExpanded((value) => !value);
+          if (!isGroupActive && firstPath) navigate(firstPath);
+        }}
+      >
+        <Flexbox horizontal align="center" gap={12} style={{ minWidth: 0 }}>
+          <Center className={styles.rowIcon}>
+            <Icon icon={GroupIcon} size={18} />
+          </Center>
+          <Text ellipsis color="currentColor" fontSize={16} weight={700}>
+            {group.title.replaceAll(' ', '')}
           </Text>
         </Flexbox>
-      }
-    >
-      <Flexbox gap={1} paddingBlock={1}>
-        {items}
-      </Flexbox>
-    </AccordionItem>
+        <Icon
+          color="currentColor"
+          icon={ChevronRight}
+          size={18}
+          style={{
+            flex: 'none',
+            transform: expanded ? 'rotate(90deg)' : undefined,
+            transition: 'transform 0.18s ease',
+          }}
+        />
+      </button>
+      {expanded && <div className={styles.groupChildren}>{children}</div>}
+    </div>
   );
 });
 
 BusinessMenuGroup.displayName = 'BusinessMenuGroup';
 
 const Body = memo(() => (
-  <Flexbox flex={1} gap={1} paddingBlock={8} paddingInline={4} style={{ minHeight: '100%' }}>
+  <nav className={styles.nav}>
     {businessNavTopItems.map((item) => (
-      <BusinessMenuLink item={item} key={item.key} />
+      <BusinessMenuLeaf item={item} key={item.key} />
     ))}
-    <Accordion defaultExpandedKeys={defaultExpandedKeys} gap={8}>
-      {businessNavGroups.map((group) => (
-        <BusinessMenuGroup group={group} key={group.key} />
-      ))}
-    </Accordion>
+    {businessNavGroups.map((group) => (
+      <BusinessMenuGroup group={group} key={group.key} />
+    ))}
     {businessNavMiddleItems.map((item) => (
-      <BusinessMenuLink item={item} key={item.key} />
+      <BusinessMenuLeaf item={item} key={item.key} />
     ))}
-    <Accordion defaultExpandedKeys={[businessNavOfficeGroup.key]} gap={8}>
-      <BusinessMenuGroup group={businessNavOfficeGroup} />
-    </Accordion>
-  </Flexbox>
+    <BusinessMenuGroup group={businessNavOfficeGroup} />
+  </nav>
 ));
 
 export default Body;

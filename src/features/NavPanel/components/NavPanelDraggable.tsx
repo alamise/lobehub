@@ -110,6 +110,8 @@ const classNames = {
   content: draggableStyles.content,
 };
 
+const HOME_NAV_PANEL_MIN_WIDTH = 300;
+
 export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }) => {
   const [expand, togglePanel, isStatusInit] = useGlobalStore((s) => [
     systemStatusSelectors.showLeftPanel(s),
@@ -121,20 +123,33 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
   // Defer DraggablePanel mount until system status hydrates; otherwise defaultSize
   // captures the pre-hydration default and the DOM drifts off NavigationBar's live width.
   const defaultWidthRef = useRef(0);
+  const isHomeNav = activeContent.key === 'home';
+  const minWidth = isHomeNav ? HOME_NAV_PANEL_MIN_WIDTH : NAV_PANEL_MIN_WIDTH;
+
   if (defaultWidthRef.current === 0 && isStatusInit) {
-    defaultWidthRef.current = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
+    const storedWidth = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
+    defaultWidthRef.current = isHomeNav
+      ? Math.max(HOME_NAV_PANEL_MIN_WIDTH, storedWidth)
+      : storedWidth;
   }
 
   const styles = useMemo(
     () => ({
-      background: isDesktop && isMacOS() ? 'transparent' : cssVar.colorBgLayout,
+      background: isHomeNav
+        ? '#0f1b2d'
+        : isDesktop && isMacOS()
+          ? 'transparent'
+          : cssVar.colorBgLayout,
       zIndex: 11,
     }),
-    [],
+    [isHomeNav],
   );
 
   if (defaultWidthRef.current === 0) {
-    const pendingWidth = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
+    const pendingStoredWidth = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
+    const pendingWidth = isHomeNav
+      ? Math.max(HOME_NAV_PANEL_MIN_WIDTH, pendingStoredWidth)
+      : pendingStoredWidth;
     return <div aria-hidden style={{ flexShrink: 0, height: '100%', width: pendingWidth }} />;
   }
 
@@ -148,7 +163,7 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
       expand={expand}
       expandable={false}
       maxWidth={NAV_PANEL_MAX_WIDTH}
-      minWidth={NAV_PANEL_MIN_WIDTH}
+      minWidth={minWidth}
       placement="left"
       showBorder={false}
       style={styles}
