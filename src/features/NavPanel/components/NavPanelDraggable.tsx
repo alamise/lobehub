@@ -20,6 +20,7 @@ import { isMacOS } from '@/utils/platform';
 
 import { useNavPanelSizeChangeHandler } from '../hooks/useNavPanel';
 import { BACK_BUTTON_ID } from './BackButton';
+import HomeSidebarFooter from './HomeSidebarFooter';
 
 const draggableStyles = createStaticStyles(({ css, cssVar }) => ({
   content: css`
@@ -178,9 +179,7 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
       <Suspense fallback={null}>
         <NavPanelUpgradeEntry />
       </Suspense>
-      <Suspense>
-        <Footer />
-      </Suspense>
+      <Suspense>{isHomeNav ? <HomeSidebarFooter /> : <Footer />}</Suspense>
     </DraggablePanel>
   );
 });

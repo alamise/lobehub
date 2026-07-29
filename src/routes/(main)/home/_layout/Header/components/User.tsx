@@ -25,7 +25,7 @@ const styles = createStaticStyles(({ css }) => ({
   `,
 }));
 
-const User = memo<{ lite?: boolean }>(({ lite }) => {
+const User = memo<{ dark?: boolean; lite?: boolean }>(({ dark, lite }) => {
   const [nickname, username, isSignedIn] = useUserStore((s) => [
     userProfileSelectors.nickName(s),
     userProfileSelectors.username(s),
@@ -38,6 +38,11 @@ const User = memo<{ lite?: boolean }>(({ lite }) => {
   const activeIdentity = useActiveIdentity();
   const displayAvatar = activeIdentity?.avatar ?? undefined;
   const displayName = activeIdentity?.name ?? (nickname || username);
+
+  // On the dark homepage sidebar header, force light text/icon colors;
+  // otherwise inherit the light-theme cssVars.
+  const textColor = dark ? '#fff' : undefined;
+  const descColor = dark ? '#9fb0c8' : cssVar.colorTextDescription;
 
   return (
     <UserPanel>
@@ -65,17 +70,13 @@ const User = memo<{ lite?: boolean }>(({ lite }) => {
         {!lite && (
           <Flexbox horizontal align={'center'} gap={4} style={{ overflow: 'hidden' }}>
             {!isSignedIn && !activeIdentity ? (
-              <ProductLogo color={cssVar.colorText} size={28} type={'text'} />
+              <ProductLogo color={textColor ?? cssVar.colorText} size={28} type={'text'} />
             ) : (
-              <Text ellipsis style={{ flex: 1 }} weight={500}>
+              <Text ellipsis color={textColor} style={{ flex: 1 }} weight={500}>
                 {displayName}
               </Text>
             )}
-            <Icon
-              color={cssVar.colorTextDescription}
-              icon={ChevronDownIcon}
-              id={USER_DROPDOWN_ICON_ID}
-            />
+            <Icon color={descColor} icon={ChevronDownIcon} id={USER_DROPDOWN_ICON_ID} />
           </Flexbox>
         )}
       </Block>

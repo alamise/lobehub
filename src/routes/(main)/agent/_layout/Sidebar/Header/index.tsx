@@ -6,12 +6,18 @@ import { memo } from 'react';
 import SideBarHeaderLayout from '@/features/NavPanel/SideBarHeaderLayout';
 
 import Agent from './Agent';
+import AgentProfileButton from './AgentProfileButton';
 import Nav from './Nav';
 
 const HeaderInfo = memo<PropsWithChildren>(() => {
   return (
     <>
-      <SideBarHeaderLayout left={<Agent />} showBack={false} />
+      <SideBarHeaderLayout
+        left={<Agent />}
+        right={<AgentProfileButton />}
+        showBack={false}
+        showTogglePanelButton={false}
+      />
       <Nav />
     </>
   );

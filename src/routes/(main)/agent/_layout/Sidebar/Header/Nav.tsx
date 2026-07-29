@@ -1,21 +1,17 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { BotPromptIcon } from '@lobehub/ui/icons';
 import { MessageSquarePlusIcon, SearchIcon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import useSWR from 'swr';
 import urlJoin from 'url-join';
 
 import NavItem from '@/features/NavPanel/components/NavItem';
 import { usePermission } from '@/hooks/usePermission';
 import { useQueryRoute } from '@/hooks/useQueryRoute';
-import { usePathname } from '@/libs/router/navigation';
 import { useActionSWR } from '@/libs/swr';
 import { topicActionKeys } from '@/libs/swr/keys';
-import { userService } from '@/services/user';
 import { useChatStore } from '@/store/chat';
 import { topicSelectors } from '@/store/chat/selectors';
 import { useGlobalStore } from '@/store/global';
@@ -25,15 +21,9 @@ const Nav = memo(() => {
   const { t: tTopic } = useTranslation('topic');
   const params = useParams();
   const agentId = params.aid;
-  const pathname = usePathname();
-  const isProfileActive = pathname.includes('/profile');
   const router = useQueryRoute();
   const { allowed: canCreateTopic } = usePermission('create_content');
   const toggleCommandMenu = useGlobalStore((s) => s.toggleCommandMenu);
-  const { data: adminState } = useSWR('user-system-admin-state', () =>
-    userService.getSystemAdminState(),
-  );
-  const switchTopic = useChatStore((s) => s.switchTopic);
   const [openNewTopicOrSaveTopic] = useChatStore((s) => [s.openNewTopicOrSaveTopic]);
   const isNewTopicSendInFlight = useChatStore(topicSelectors.isNewTopicSendInFlight);
 
@@ -64,18 +54,6 @@ const Nav = memo(() => {
           toggleCommandMenu(true);
         }}
       />
-      {/* 助理档案：仅超管可见 */}
-      {adminState?.isSystemAdmin && (
-        <NavItem
-          active={isProfileActive}
-          icon={BotPromptIcon}
-          title={t('tab.profile')}
-          onClick={() => {
-            switchTopic(null, { skipRefreshMessage: true });
-            router.push(urlJoin('/agent', agentId!, 'profile'));
-          }}
-        />
-      )}
     </Flexbox>
   );
 });
