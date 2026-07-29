@@ -725,6 +725,99 @@ export const sharedMainAreaChildren: RouteObject[] = [
     errorElement: <ErrorBoundary />,
     path: 'page',
   },
+
+  // Business workflow routes
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Decision > Water Quality',
+    ),
+    path: 'decision/water-quality',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Decision > Air Quality',
+    ),
+    path: 'decision/air-quality',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Decision > Statistics',
+    ),
+    path: 'decision/statistics',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Decision > Ministry Interpretation',
+    ),
+    path: 'decision/minister-interpretation',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Enforcement > Archive',
+    ),
+    path: 'enforcement/archive',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Enforcement > Company',
+    ),
+    path: 'enforcement/company',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessCasePage'),
+      'Desktop > Business > Enforcement > Case',
+    ),
+    path: 'enforcement/case',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Enforcement > Emergency',
+    ),
+    path: 'enforcement/emergency',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Approval > EIA',
+    ),
+    path: 'approval/eia',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Approval > Map',
+    ),
+    path: 'approval/map',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Monitoring',
+    ),
+    path: 'monitoring',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Office > Knowledge Base',
+    ),
+    path: 'office/knowledge-base',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessPlaceholderPage'),
+      'Desktop > Business > Office > Document Format',
+    ),
+    path: 'office/document-format',
+  },
 ];
 
 // Desktop router configuration (declarative mode)

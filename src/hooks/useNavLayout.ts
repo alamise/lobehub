@@ -1,4 +1,4 @@
-import { HomeIcon, SearchIcon } from 'lucide-react';
+import { SearchIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -47,12 +47,6 @@ export const useNavLayout = (): NavLayout => {
           key: 'search',
           onClick: () => toggleCommandMenu(true),
           title: t('tab.search'),
-        },
-        {
-          icon: HomeIcon,
-          key: SidebarTabKey.Home,
-          title: t('tab.home'),
-          url: '/',
         },
         {
           icon: getRouteById('tasks')!.icon,

@@ -33,6 +33,17 @@ describe('buildWorkspaceAwarePath', () => {
     expect(buildWorkspaceAwarePath('/eval/bench/bench-1/runs/run-1/cases/case-1', 'acme')).toBe(
       '/acme/eval/bench/bench-1/runs/run-1/cases/case-1',
     );
+    expect(buildWorkspaceAwarePath('/decision/water-quality', 'acme')).toBe(
+      '/acme/decision/water-quality',
+    );
+    expect(buildWorkspaceAwarePath('/enforcement/archive', 'acme')).toBe(
+      '/acme/enforcement/archive',
+    );
+    expect(buildWorkspaceAwarePath('/approval/eia', 'acme')).toBe('/acme/approval/eia');
+    expect(buildWorkspaceAwarePath('/monitoring', 'acme')).toBe('/acme/monitoring');
+    expect(buildWorkspaceAwarePath('/office/knowledge-base', 'acme')).toBe(
+      '/acme/office/knowledge-base',
+    );
   });
 
   it('bypasses the prefix when `escape` is true', () => {

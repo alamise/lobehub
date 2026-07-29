@@ -7,6 +7,7 @@ import MessagesRoutes from './messages.route';
 import ModelsRoutes from './models.route';
 import PermissionsRoutes from './permissions.route';
 import ProvidersRoutes from './providers.route';
+import CaseArchivesRoutes from './case-archives.route';
 import ResponsesRoutes from './responses.route';
 import RolesRoutes from './roles.route';
 import TopicsRoutes from './topics.route';
@@ -22,6 +23,7 @@ export default {
   'models': ModelsRoutes,
   'permissions': PermissionsRoutes,
   'providers': ProvidersRoutes,
+  'case-archives': CaseArchivesRoutes,
   'responses': ResponsesRoutes,
   'roles': RolesRoutes,
   'topics': TopicsRoutes,

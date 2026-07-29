@@ -121,6 +121,8 @@ import MemoryPreferencesPage from '@/routes/(main)/memory/preferences';
 import PageIndexPage from '@/routes/(main)/page';
 import DesktopPageLayout from '@/routes/(main)/page/_layout';
 import PageDetailPage from '@/routes/(main)/page/[id]';
+import BusinessCasePage from '@/features/BusinessCasePage';
+import BusinessPlaceholderPage from '@/features/BusinessPlaceholderPage';
 import ResourceLayout from '@/routes/(main)/resource/_layout';
 import ResourceHomePage from '@/routes/(main)/resource/(home)';
 import ResourceHomeLayout from '@/routes/(main)/resource/(home)/_layout';
@@ -631,6 +633,60 @@ export const sharedMainAreaChildren: RouteObject[] = [
     element: <DesktopPageLayout />,
     errorElement: <ErrorBoundary />,
     path: 'page',
+  },
+
+  // Business workflow routes
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'decision/water-quality',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'decision/air-quality',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'decision/statistics',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'decision/minister-interpretation',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'enforcement/archive',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'enforcement/company',
+  },
+  {
+    element: <BusinessCasePage />,
+    path: 'enforcement/case',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'enforcement/emergency',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'approval/eia',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'approval/map',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'monitoring',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'office/knowledge-base',
+  },
+  {
+    element: <BusinessPlaceholderPage />,
+    path: 'office/document-format',
   },
 ];
 
