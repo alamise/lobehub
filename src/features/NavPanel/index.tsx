@@ -61,6 +61,8 @@ const PAGE_NAV_KEY = 'page';
 const IMAGE_NAV_KEY = 'image';
 const VIDEO_NAV_KEY = 'video';
 
+const FULLSCREEN_ROUTE_PATTERNS = [/^\/(?:[^/]+\/)?enforcement\/archive\/[^/]+\/?$/];
+
 const DEDICATED_ROUTE_NAV_SEGMENTS = new Set([
   'community',
   'eval',
@@ -137,6 +139,7 @@ const NavPanel = memo(() => {
       }
     : null;
   const mainRouteSegment = getMainRouteSegment(pathname, activeSlug);
+  const shouldHideNavPanel = FULLSCREEN_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname));
   const communityFallback =
     mainRouteSegment === 'community'
       ? {
@@ -222,7 +225,7 @@ const NavPanel = memo(() => {
 
   return (
     <>
-      <NavPanelDraggable activeContent={activeContent} />
+      {!shouldHideNavPanel && <NavPanelDraggable activeContent={activeContent} />}
       <div
         id={NAV_PANEL_RIGHT_DRAWER_ID}
         style={{

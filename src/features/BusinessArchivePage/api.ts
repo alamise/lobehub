@@ -35,8 +35,6 @@ type ApiEnvelope<T> = {
 
 const ARCHIVE_API_BASE = '/api/v1/ai-archive';
 
-const authHeaders = (token?: string | null) => (token ? { Authorization: `Bearer ${token}` } : {});
-
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const text = await response.text();
   if (!text) return undefined as T;
@@ -51,13 +49,13 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 
 const request = async <T>(path: string, options?: RequestInit, token?: string | null) => {
   const isJsonBody = options?.body != null && !(options.body instanceof FormData);
+  const headers = new Headers(options?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (isJsonBody) headers.set('Content-Type', 'application/json');
+
   const response = await fetch(`${ARCHIVE_API_BASE}${path}`, {
     ...options,
-    headers: {
-      ...authHeaders(token),
-      ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers || {}),
-    },
+    headers,
   });
   if (!response.ok) {
     try {
@@ -95,7 +93,11 @@ export const getAiArchives = (params: {
   if (params.category_code) searchParams.set('category_code', params.category_code);
   if (params.category_prefix) searchParams.set('category_prefix', params.category_prefix);
   const query = searchParams.toString();
-  return request<PagedData<AiArchiveItem>>(`/${query ? `?${query}` : ''}`, undefined, params.authToken);
+  return request<PagedData<AiArchiveItem>>(
+    `/${query ? `?${query}` : ''}`,
+    undefined,
+    params.authToken,
+  );
 };
 
 export const getAiArchive = (id: number, authToken?: string | null) =>
@@ -106,10 +108,17 @@ export const getArchiveCategories = (authToken?: string | null) =>
 
 export interface ArchivePageItem {
   content: string;
+  dpi?: number;
   file_name: string;
+  governed_parse_result?: string;
   id: number;
+  image_url?: string;
+  oss_path?: string;
   page_num: number;
+  parse_error?: string;
+  parse_result?: string;
   parse_status: string;
+  thumbnail_url?: string;
 }
 
 export const getArchivePages = (

@@ -15,25 +15,30 @@ const AiArchiveRoutes = new Hono();
 
 const ARCHIVE_SCOPE = 'ent';
 const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 20;
-
 interface ArchiveRow extends QueryResultRow {
-  id: number;
-  title: string | null;
-  doc_no: string | null;
-  year: string | null;
-  page_count: number | null;
+  ai_guide: string | null;
   category_code: string | null;
   category_name: string | null;
   company_id: number | null;
-  responsible_party: string | null;
-  dept_name: string | null;
-  process_status: string | null;
-  ai_guide: string | null;
   create_time: string | null;
+  dept_name: string | null;
+  doc_no: string | null;
+  id: number;
+  page_count: number | null;
+  process_status: string | null;
+  responsible_party: string | null;
+  title: string | null;
+  year: string | null;
 }
 
-const SORT_WHITELIST = ['id', 'title', 'doc_no', 'year', 'page_count', 'environmental_extract_status'];
+const SORT_WHITELIST = [
+  'id',
+  'title',
+  'doc_no',
+  'year',
+  'page_count',
+  'environmental_extract_status',
+];
 
 /**
  * 与旧版 Go 服务 buildEnvironmentalExtractStatusOrderClause 完全一致的复合排序：
@@ -195,11 +200,17 @@ AiArchiveRoutes.get('/:id', async (c) => {
 });
 
 interface ArchivePageRow extends QueryResultRow {
-  id: number;
-  page_num: number | null;
+  dpi: number | null;
   file_name: string | null;
-  parse_status: string | null;
+  governed_parse_result: string | null;
+  id: number;
+  image_url: string | null;
+  oss_path: string | null;
+  page_num: number | null;
+  parse_error: string | null;
   parse_result: string | null;
+  parse_status: string | null;
+  thumbnail_url: string | null;
 }
 
 AiArchiveRoutes.get('/:id/pages', async (c) => {
@@ -208,7 +219,7 @@ AiArchiveRoutes.get('/:id/pages', async (c) => {
 
   const url = new URL(c.req.url);
   const page = toPositiveInt(url.searchParams.get('page'), DEFAULT_PAGE);
-  const size = Math.min(toPositiveInt(url.searchParams.get('size'), 10), 50);
+  const size = Math.min(toPositiveInt(url.searchParams.get('size'), 10), 500);
   const offset = (page - 1) * size;
 
   const data = await withClient(async (client) => {
@@ -224,7 +235,8 @@ AiArchiveRoutes.get('/:id/pages', async (c) => {
     );
 
     const rowsResult = await client.query<ArchivePageRow>(
-      `SELECT id, page_num, file_name, parse_status, parse_result
+      `SELECT id, page_num, file_name, oss_path, image_url, thumbnail_url, dpi,
+              parse_status, parse_result, governed_parse_result, parse_error
        FROM archive_page_image
        WHERE archive_id = $1
        ORDER BY page_num ASC NULLS LAST, id ASC
@@ -235,10 +247,17 @@ AiArchiveRoutes.get('/:id/pages', async (c) => {
     return {
       list: rowsResult.rows.map((row) => ({
         content: row.parse_result || '',
+        dpi: row.dpi == null ? 0 : Number(row.dpi),
         file_name: row.file_name || '',
+        governed_parse_result: row.governed_parse_result || '',
         id: Number(row.id),
+        image_url: row.image_url || '',
+        oss_path: row.oss_path || '',
         page_num: row.page_num == null ? 0 : Number(row.page_num),
+        parse_error: row.parse_error || '',
+        parse_result: row.parse_result || '',
         parse_status: row.parse_status || 'pending',
+        thumbnail_url: row.thumbnail_url || '',
       })),
       page,
       size,
