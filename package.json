@@ -462,7 +462,8 @@
     "yaml": "^2.9.0",
     "zod": "^4.4.3",
     "zustand": "5.0.4",
-    "zustand-utils": "^2.1.1"
+    "zustand-utils": "^2.1.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
@@ -574,6 +575,7 @@
     ],
     "overrides": {
       "@react-pdf/image": "3.0.4",
+      "framer-motion": "12.42.2",
       "@types/react": "19.2.13",
       "@vitest/coverage-v8": "3.2.6",
       "antd": "6.3.5",

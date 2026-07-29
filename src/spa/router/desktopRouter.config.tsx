@@ -729,42 +729,49 @@ export const sharedMainAreaChildren: RouteObject[] = [
   // Business workflow routes
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessWaterQualityPage'),
       'Desktop > Business > Decision > Water Quality',
     ),
     path: 'decision/water-quality',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessAirQualityPage'),
       'Desktop > Business > Decision > Air Quality',
     ),
     path: 'decision/air-quality',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessStatisticsPage'),
       'Desktop > Business > Decision > Statistics',
     ),
     path: 'decision/statistics',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessMinisterInterpretationPage'),
       'Desktop > Business > Decision > Ministry Interpretation',
     ),
     path: 'decision/minister-interpretation',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessArchivePage'),
       'Desktop > Business > Enforcement > Archive',
     ),
     path: 'enforcement/archive',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessArchiveDetailPage'),
+      'Desktop > Business > Enforcement > Archive Detail',
+    ),
+    path: 'enforcement/archive/:id',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessEnterprisePage'),
       'Desktop > Business > Enforcement > Company',
     ),
     path: 'enforcement/company',
@@ -778,42 +785,49 @@ export const sharedMainAreaChildren: RouteObject[] = [
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessCaseDetailPage'),
+      'Desktop > Business > Enforcement > Case Detail',
+    ),
+    path: 'enforcement/case/:id',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessEmergencyPage'),
       'Desktop > Business > Enforcement > Emergency',
     ),
     path: 'enforcement/emergency',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessEiaPage'),
       'Desktop > Business > Approval > EIA',
     ),
     path: 'approval/eia',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessAIMapPage'),
       'Desktop > Business > Approval > Map',
     ),
     path: 'approval/map',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessMonitoringPage'),
       'Desktop > Business > Monitoring',
     ),
     path: 'monitoring',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessKnowledgeBasePage'),
       'Desktop > Business > Office > Knowledge Base',
     ),
     path: 'office/knowledge-base',
   },
   {
     element: dynamicElement(
-      () => import('@/features/BusinessPlaceholderPage'),
+      () => import('@/features/BusinessDocumentFormatPage'),
       'Desktop > Business > Office > Document Format',
     ),
     path: 'office/document-format',

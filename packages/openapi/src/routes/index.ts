@@ -8,6 +8,13 @@ import ModelsRoutes from './models.route';
 import PermissionsRoutes from './permissions.route';
 import ProvidersRoutes from './providers.route';
 import CaseArchivesRoutes from './case-archives.route';
+import AiArchiveRoutes from './ai-archive.route';
+import AiEnterpriseRoutes from './ai-enterprise.route';
+import AiEmergencyRoutes from './ai-emergency.route';
+import AiArticlesRoutes from './ai-articles.route';
+import AiEiaRoutes from './ai-eia.route';
+import AiKnowledgeRoutes from './ai-knowledge.route';
+import AiDocumentFormatRoutes from './ai-document-format.route';
 import ResponsesRoutes from './responses.route';
 import RolesRoutes from './roles.route';
 import TopicsRoutes from './topics.route';
@@ -24,6 +31,13 @@ export default {
   'permissions': PermissionsRoutes,
   'providers': ProvidersRoutes,
   'case-archives': CaseArchivesRoutes,
+  'ai-archive': AiArchiveRoutes,
+  'ai-enterprise': AiEnterpriseRoutes,
+  'ai-emergency': AiEmergencyRoutes,
+  'ai-articles': AiArticlesRoutes,
+  'ai-eia': AiEiaRoutes,
+  'ai-knowledge': AiKnowledgeRoutes,
+  'ai-document-format': AiDocumentFormatRoutes,
   'responses': ResponsesRoutes,
   'roles': RolesRoutes,
   'topics': TopicsRoutes,

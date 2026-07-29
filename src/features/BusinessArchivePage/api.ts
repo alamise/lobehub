@@ -1,38 +1,30 @@
-export interface CaseArchiveItem {
-  annex_name?: string;
+export interface ArchiveCategory {
+  code: string;
+  description?: string | null;
+  name: string;
+}
+
+export interface AiArchiveItem {
+  ai_guide?: string;
   category_code?: string;
+  category_name?: string;
+  company_id?: number | null;
   create_time?: string;
   dept_name?: string;
   doc_no?: string;
   id: number;
   page_count?: number;
-  pdf_url?: string;
   process_status?: string;
-  remarks?: string;
   responsible_party?: string;
   title?: string;
-  updated_at?: string;
   year?: string;
 }
 
 export interface PagedData<T> {
   list: T[];
-  total: number;
   page: number;
   size: number;
-}
-
-export interface ManagedArchiveUpsertPayload {
-  annex_name?: string;
-  category_code?: string;
-  dept_name?: string;
-  doc_no?: string;
-  oss_hit_first_path?: string;
-  page_count?: number;
-  remarks?: string;
-  responsible_party?: string;
-  title: string;
-  year?: string;
+  total: number;
 }
 
 type ApiEnvelope<T> = {
@@ -41,31 +33,25 @@ type ApiEnvelope<T> = {
   msg?: string;
 };
 
-const CASE_API_BASE = '/api/v1/case-archives';
+const ARCHIVE_API_BASE = '/api/v1/ai-archive';
 
 const authHeaders = (token?: string | null) => (token ? { Authorization: `Bearer ${token}` } : {});
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const text = await response.text();
   if (!text) return undefined as T;
-
   const payload = JSON.parse(text) as ApiEnvelope<T> | T;
-
   if (payload && typeof payload === 'object' && 'code' in payload) {
     const envelope = payload as ApiEnvelope<T>;
-    if (envelope.code !== 200) {
-      throw new Error(envelope.msg || '请求失败');
-    }
+    if (envelope.code !== 200) throw new Error(envelope.msg || '请求失败');
     return envelope.data;
   }
-
   return payload as T;
 };
 
 const request = async <T>(path: string, options?: RequestInit, token?: string | null) => {
-  const isJsonBody =
-    options?.body != null && !(options.body instanceof FormData) && !(options.body instanceof Blob);
-  const response = await fetch(`${CASE_API_BASE}${path}`, {
+  const isJsonBody = options?.body != null && !(options.body instanceof FormData);
+  const response = await fetch(`${ARCHIVE_API_BASE}${path}`, {
     ...options,
     headers: {
       ...authHeaders(token),
@@ -73,7 +59,6 @@ const request = async <T>(path: string, options?: RequestInit, token?: string | 
       ...(options?.headers || {}),
     },
   });
-
   if (!response.ok) {
     try {
       const err = (await response.json()) as { error?: string; msg?: string };
@@ -82,61 +67,44 @@ const request = async <T>(path: string, options?: RequestInit, token?: string | 
       throw new Error(`HTTP ${response.status}`);
     }
   }
-
   return parseResponse<T>(response);
 };
 
-export const getCaseArchives = (params: {
+export const getAiArchives = (params: {
   authToken?: string | null;
+  category_code?: string;
+  category_prefix?: string;
+  order?: 'asc' | 'desc';
   page?: number;
   search?: string;
   size?: number;
+  sort?: string;
   title?: string;
-  docNo?: string;
+  doc_no?: string;
   year?: string;
 }) => {
   const searchParams = new URLSearchParams();
   if (params.page) searchParams.set('page', String(params.page));
   if (params.size) searchParams.set('size', String(params.size));
+  if (params.sort) searchParams.set('sort', params.sort);
+  if (params.order) searchParams.set('order', params.order);
   if (params.search) searchParams.set('search', params.search);
   if (params.title) searchParams.set('title', params.title);
-  if (params.docNo) searchParams.set('doc_no', params.docNo);
+  if (params.doc_no) searchParams.set('doc_no', params.doc_no);
   if (params.year) searchParams.set('year', params.year);
-
+  if (params.category_code) searchParams.set('category_code', params.category_code);
+  if (params.category_prefix) searchParams.set('category_prefix', params.category_prefix);
   const query = searchParams.toString();
-  return request<PagedData<CaseArchiveItem>>(`/${query ? `?${query}` : ''}`, undefined, params.authToken);
+  return request<PagedData<AiArchiveItem>>(`/${query ? `?${query}` : ''}`, undefined, params.authToken);
 };
 
-export const getCaseArchive = (id: number, authToken?: string | null) =>
-  request<CaseArchiveItem>(`/${id}`, undefined, authToken);
+export const getAiArchive = (id: number, authToken?: string | null) =>
+  request<AiArchiveItem>(`/${id}`, undefined, authToken);
 
-export const uploadCaseArchive = (file: File, authToken?: string | null) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  return request<CaseArchiveItem>('/upload', { method: 'POST', body: formData }, authToken);
-};
+export const getArchiveCategories = (authToken?: string | null) =>
+  request<ArchiveCategory[]>('/categories', undefined, authToken);
 
-export const updateCaseArchive = (
-  id: number,
-  payload: ManagedArchiveUpsertPayload,
-  authToken?: string | null,
-) =>
-  request<CaseArchiveItem>(
-    `/${id}`,
-    {
-      body: JSON.stringify(payload),
-      method: 'PUT',
-    },
-    authToken,
-  );
-
-export const deleteCaseArchive = (id: number, authToken?: string | null) =>
-  request<void>(`/${id}`, { method: 'DELETE' }, authToken);
-
-export const retryCaseArchiveProcess = (id: number, authToken?: string | null) =>
-  request<CaseArchiveItem>(`/${id}/retry-process`, { method: 'POST' }, authToken);
-
-export interface CasePageItem {
+export interface ArchivePageItem {
   content: string;
   file_name: string;
   id: number;
@@ -144,7 +112,7 @@ export interface CasePageItem {
   parse_status: string;
 }
 
-export const getCaseArchivePages = (
+export const getArchivePages = (
   id: number,
   params: { page?: number; size?: number },
   authToken?: string | null,
@@ -153,7 +121,7 @@ export const getCaseArchivePages = (
   if (params.page) searchParams.set('page', String(params.page));
   if (params.size) searchParams.set('size', String(params.size));
   const query = searchParams.toString();
-  return request<PagedData<CasePageItem>>(
+  return request<PagedData<ArchivePageItem>>(
     `/${id}/pages${query ? `?${query}` : ''}`,
     undefined,
     authToken,

@@ -27,7 +27,6 @@ interface CaseArchiveRow extends QueryResultRow {
   remarks: string | null;
   responsible_party: string | null;
   title: string | null;
-  updated_at: string | null;
   year: string | null;
 }
 
@@ -154,8 +153,7 @@ const selectColumns = `
   annex_name,
   oss_hit_first_path,
   process_status,
-  receive_time::text AS create_time,
-  updated_at::text AS updated_at
+  receive_time::text AS create_time
 `;
 
 const mapArchive = (row: CaseArchiveRow) => ({
@@ -172,7 +170,7 @@ const mapArchive = (row: CaseArchiveRow) => ({
   remarks: row.remarks || '',
   responsible_party: row.responsible_party || '',
   title: row.title || '',
-  updated_at: row.updated_at || '',
+  updated_at: row.create_time || '',
   year: row.year || '',
 });
 
@@ -234,7 +232,7 @@ CaseArchivesRoutes.get('/', async (c) => {
       `SELECT ${selectColumns}
        FROM file_archive
        WHERE ${filter.where}
-       ORDER BY updated_at DESC NULLS LAST, id DESC
+       ORDER BY receive_time DESC NULLS LAST, id DESC
        LIMIT $${filter.params.length + 1} OFFSET $${filter.params.length + 2}`,
       [...filter.params, size, offset],
     );
@@ -269,6 +267,62 @@ CaseArchivesRoutes.get('/:id', async (c) => {
   return success(c, archive);
 });
 
+interface CasePageRow extends QueryResultRow {
+  id: number;
+  page_num: number | null;
+  file_name: string | null;
+  parse_status: string | null;
+  parse_result: string | null;
+}
+
+CaseArchivesRoutes.get('/:id/pages', async (c) => {
+  const id = toPositiveInt(c.req.param('id'), 0);
+  if (!id) throw new HTTPException(400, { message: 'Invalid archive id' });
+
+  const url = new URL(c.req.url);
+  const page = toPositiveInt(url.searchParams.get('page'), DEFAULT_PAGE);
+  const size = Math.min(toPositiveInt(url.searchParams.get('size'), 10), 50);
+  const offset = (page - 1) * size;
+
+  const data = await withClient(async (client) => {
+    const exists = await client.query(
+      `SELECT 1 FROM file_archive WHERE id = $1 AND visible = $2 AND scope = $3`,
+      [id, 'yes', CASE_ARCHIVE_SCOPE],
+    );
+    if (!exists.rowCount) return undefined;
+
+    const countResult = await client.query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total FROM archive_page_image WHERE archive_id = $1`,
+      [id],
+    );
+
+    const rowsResult = await client.query<CasePageRow>(
+      `SELECT id, page_num, file_name, parse_status, parse_result
+       FROM archive_page_image
+       WHERE archive_id = $1
+       ORDER BY page_num ASC NULLS LAST, id ASC
+       LIMIT $2 OFFSET $3`,
+      [id, size, offset],
+    );
+
+    return {
+      list: rowsResult.rows.map((row) => ({
+        content: row.parse_result || '',
+        file_name: row.file_name || '',
+        id: Number(row.id),
+        page_num: row.page_num == null ? 0 : Number(row.page_num),
+        parse_status: row.parse_status || 'pending',
+      })),
+      page,
+      size,
+      total: Number(countResult.rows[0]?.total || 0),
+    };
+  });
+
+  if (!data) throw new HTTPException(404, { message: '案卷不存在' });
+  return success(c, data);
+});
+
 CaseArchivesRoutes.post('/', async (c) => {
   const payload = await parsePayload(c);
 
@@ -295,13 +349,13 @@ CaseArchivesRoutes.post('/', async (c) => {
          extract_status,
          pdf_full_text_ocr_parse_status,
          environmental_extract_status,
-         updated_at
+         receive_time
        )
        VALUES (
          $12,
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
          $11, 'green', 'yes', 'pending', 'pending', 'pending', 'pending', 'pending', 'pending',
-         NOW()
+         NOW()::text
        )
        RETURNING ${selectColumns}`,
       [
@@ -343,8 +397,7 @@ CaseArchivesRoutes.put('/:id', async (c) => {
            remarks = $7,
            category_code = $8,
            annex_name = $9,
-           oss_hit_first_path = $10,
-           updated_at = NOW()
+           oss_hit_first_path = $10
        WHERE id = $11 AND visible = $12 AND scope = $13
        RETURNING ${selectColumns}`,
       [
@@ -377,7 +430,7 @@ CaseArchivesRoutes.delete('/:id', async (c) => {
   const deleted = await withClient(async (client) => {
     const result = await client.query(
       `UPDATE file_archive
-       SET visible = $1, updated_at = NOW()
+       SET visible = $1
        WHERE id = $2 AND visible = $3 AND scope = $4`,
       ['no', id, 'yes', CASE_ARCHIVE_SCOPE],
     );

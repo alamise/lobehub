@@ -121,8 +121,21 @@ import MemoryPreferencesPage from '@/routes/(main)/memory/preferences';
 import PageIndexPage from '@/routes/(main)/page';
 import DesktopPageLayout from '@/routes/(main)/page/_layout';
 import PageDetailPage from '@/routes/(main)/page/[id]';
+import BusinessArchiveDetailPage from '@/features/BusinessArchiveDetailPage';
+import BusinessArchivePage from '@/features/BusinessArchivePage';
+import BusinessCaseDetailPage from '@/features/BusinessCaseDetailPage';
 import BusinessCasePage from '@/features/BusinessCasePage';
-import BusinessPlaceholderPage from '@/features/BusinessPlaceholderPage';
+import BusinessEmergencyPage from '@/features/BusinessEmergencyPage';
+import BusinessEnterprisePage from '@/features/BusinessEnterprisePage';
+import BusinessWaterQualityPage from '@/features/BusinessWaterQualityPage';
+import BusinessAirQualityPage from '@/features/BusinessAirQualityPage';
+import BusinessStatisticsPage from '@/features/BusinessStatisticsPage';
+import BusinessMinisterInterpretationPage from '@/features/BusinessMinisterInterpretationPage';
+import BusinessEiaPage from '@/features/BusinessEiaPage';
+import BusinessAIMapPage from '@/features/BusinessAIMapPage';
+import BusinessMonitoringPage from '@/features/BusinessMonitoringPage';
+import BusinessKnowledgeBasePage from '@/features/BusinessKnowledgeBasePage';
+import BusinessDocumentFormatPage from '@/features/BusinessDocumentFormatPage';
 import ResourceLayout from '@/routes/(main)/resource/_layout';
 import ResourceHomePage from '@/routes/(main)/resource/(home)';
 import ResourceHomeLayout from '@/routes/(main)/resource/(home)/_layout';
@@ -637,27 +650,31 @@ export const sharedMainAreaChildren: RouteObject[] = [
 
   // Business workflow routes
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessWaterQualityPage />,
     path: 'decision/water-quality',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessAirQualityPage />,
     path: 'decision/air-quality',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessStatisticsPage />,
     path: 'decision/statistics',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessMinisterInterpretationPage />,
     path: 'decision/minister-interpretation',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessArchivePage />,
     path: 'enforcement/archive',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessArchiveDetailPage />,
+    path: 'enforcement/archive/:id',
+  },
+  {
+    element: <BusinessEnterprisePage />,
     path: 'enforcement/company',
   },
   {
@@ -665,27 +682,31 @@ export const sharedMainAreaChildren: RouteObject[] = [
     path: 'enforcement/case',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessCaseDetailPage />,
+    path: 'enforcement/case/:id',
+  },
+  {
+    element: <BusinessEmergencyPage />,
     path: 'enforcement/emergency',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessEiaPage />,
     path: 'approval/eia',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessAIMapPage />,
     path: 'approval/map',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessMonitoringPage />,
     path: 'monitoring',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessKnowledgeBasePage />,
     path: 'office/knowledge-base',
   },
   {
-    element: <BusinessPlaceholderPage />,
+    element: <BusinessDocumentFormatPage />,
     path: 'office/document-format',
   },
 ];
