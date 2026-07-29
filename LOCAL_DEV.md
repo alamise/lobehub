@@ -5,10 +5,10 @@
 ## 架构
 
 ```
-浏览器 ── http://localhost:9876 ──► vite (SPA, 本机)
-                                      │  /api /oidc /trpc /webapi 代理
+浏览器 ── http://localhost:3010 ──► next dev (页面中间件 + 后端, 本机)
+                                      │  开发期 SPA 资源
                                       ▼
-                                   next dev (后端, 本机 :3010)
+                                   vite (SPA, 本机 :9876)
                                       │  连接
             ┌─────────────────────────┼───────────────────────────┐
             ▼                         ▼                           ▼
@@ -16,41 +16,76 @@
    云端 cyan 旧库(8021)      onlyboxes(公网 onlyboxes.cyan.zj.cn)   hbai-mcp(服务器反代 /mcp)
 ```
 
-- vite 默认就把 `/api` `/oidc` `/trpc` `/webapi` 代理到 `localhost:3010`（见 `vite.config.ts`），**无需改前端代码**。
+- 浏览器入口使用 `localhost:3010`，这样请求会先经过 Next 页面中间件，未登录时会跳转到 `/signin`。
+- vite 仍在 `localhost:9876` 提供开发期 SPA 资源；不要把它作为浏览器入口，否则会绕过 Next 页面中间件。
 - 后端 `next dev` 通过 `.env.development.local` 把上述 infra 指向云端。
 
-## 前置要求（Node 版本，重要）
+## 前置要求（Node 版本与一处源码修复）
 
-本地 `next dev` 用到的 `node:zlib.zstdDecompress`（见 `packages/agent-tracing`）**只在 Node ≥ 22.15 才有**；生产构建 / 运行用的是 `node:24`。若本机 Node 过旧（22.0–22.14 或 20.x），首页会报 `TypeError: The "original" argument must be of type function. Received undefined`（来自 `agent-tracing` 模块求值阶段），且 `/trpc/lambda/config.getGlobalConfig` 路由 500。
+⚠️ **历史坑（已修复）**：早期在 `next dev` 下首页会报
+`TypeError: The "original" argument must be of type function. Received undefined`
+（来自 `packages/agent-tracing/src/store/remote-store.ts`，导致首页调用的
+`/trpc/lambda/config.getGlobalConfig` 路由 500）。
 
-> **务必用 Node 24（或至少 ≥ 22.15）跑 `pnpm dev`**，与线上 `node:24` 保持一致，源码无需任何改动。
+**根因不是 Node 版本**，而是该文件用了 `import { zstdDecompress } from 'node:zlib'`——
+`node:zlib` 是 CJS 模块、`zstdDecompress` 由惰性 getter 提供，`next dev` 的 Turbopack
+打包器无法静态识别这个具名导出，编译后解析成 `undefined`，`promisify(undefined)` 在模块
+求值阶段即崩溃。**生产构建走不同打包路径，所以线上没暴露。**
 
-仓库已放 `.nvmrc`（`24`）。切换方式（任选其一）：
+**已修复**：把 `remote-store.ts` 改为运行时 `require('node:zlib')` 取整个模块对象再访问
+属性，并在该 API 不可用时优雅降级（见文件顶部注释）。现在 `pnpm dev` 在**任意 Node 版本**
+下都不会再报这个错，dev 用 Node 24 或 22.22.2 均可。
+
+仓库已放 `.nvmrc`（`24`）。切换方式：
 
 ```bash
-# nvm
-nvm install 24 && nvm use 24
-# 或 fnm
-fnm use 24
-# 验证
-node -e "console.log(typeof require('node:zlib').zstdDecompress)" # 应输出 function
+# nvm（本机已装 v24.18.0，直接 use 即可，无需联网下载；不要跑 nvm install 24，离线会失败）
+nvm use 24
 ```
+
+> 说明：`nvm install 24` 会因本机无法访问 nodejs.org 而报 "Version '24' not found"；
+> 用已装好的版本即可，命令是 `nvm use 24`，不是 `nvm install`。若 shell 配了 auto-nvm-use
+> 插件，`cd` 进目录会自动切；否则每次新开终端手动 `nvm use 24` 一次。
 
 ## 一键启动
 
 ```bash
-# 1. 首次需要安装依赖（arm64 装依赖没问题，只是 standalone 编译不行，dev 不受影响）
+# 1. 首次需要安装依赖 —— ⚠️ 见下方「重装依赖」注意：必须用 Node 24 以外的 Node 装
 pnpm install
 
 # 2. 从服务器 .env 拉取云端连接串，生成 .env.development.local
 bash scripts/sync-local-env.sh
 
 # 3. 启动（会并发起 next dev + vite，Ctrl+C 一起退出）
+nvm use 24 # dev 用 Node 24（或 22.22.2 均可；zstd 报错已从源头修复，见「前置要求」）
 pnpm dev
-#    打开 http://localhost:9876
+#    打开 http://localhost:3010
 ```
 
-> 端口说明：`pnpm dev` 启动后端在 `:3010`、前端 vite 在 `:9876`（已在 `.env.development.local` 固定 `SPA_PORT=9876`，与 `APP_URL` 一致）。`vite.config.ts` 的代理目标用的是 `localhost:3010`，与本地后端吻合。
+> 端口说明：`pnpm dev` 启动后端在 `:3010`、前端 vite 在 `:9876`（已在 `.env.development.local` 固定 `SPA_PORT=9876`）。`APP_URL` 指向 `localhost:3010`，因为登录保护由 Next 页面中间件执行；直接打开 `localhost:9876` 会绕过这层保护。
+
+## 重装依赖的坑（ERR\_INVALID\_THIS，重要）
+
+在 **Node 24** 下直接 `pnpm install` 会报 `WARN GET https://registry.npmmirror.com/... error (ERR_INVALID_THIS)`，且最终 `node_modules` 会被清空却装不全（Recreating 后失败）。这是 **Node 24.18 + 当前 pnpm（10.23.0/10.33.0）的兼容 bug**（Node 22.22.2 同版本 pnpm 不触发）。
+
+> **与「前置要求」不冲突**：dev 现在在任意 Node 都能跑（zstd 报错已从源码修复）；但**装依赖**仍不能用 Node 24（会踩 `ERR_INVALID_THIS` 把 `node_modules` 清空）。所以还是「用 Node 22.22.2 /v20.18.1 装，用 Node 24 跑 dev」。已验证「用 Node 22.22.2 装好的 node\_modules，在 Node 24 下 dev 完全正常」（原生模块 non-ABI 问题，已实测通过）。
+
+**正确装法（任选其一，关键：install 时别用 Node 24）**：
+
+```bash
+# 方案 A（最稳，已验证）：用本机托管的 Node 22.22.2 装
+export PATH=/Users/dongjiming/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH
+pnpm install
+pnpm rebuild # 补 esbuild/sharp 等被 pnpm v10 默认拦截的原生构建脚本
+# 装完后切回 Node 24 跑 dev：
+nvm use 24 && pnpm dev
+
+# 方案 B：用 nvm 里 < 22.12 的 Node（如 v20.18.1）装，再 nvm use 24 跑 dev
+nvm use 20.18.1 && pnpm install && pnpm rebuild
+nvm use 24 && pnpm dev
+```
+
+> 注意：nvm 里的 `v22.12.0` 也会触发该 bug（22.12 起 Node 改了 fetch/URL），不要用它装。装完依赖后日常 dev 用 Node 24 即可，无需重装。
 
 ## onlyboxes（公网独立域名）
 
@@ -64,7 +99,7 @@ hbai-mcp 已通过 `proxy/mcp.conf` 暴露在 `https://lobe.cyan.zj.cn/mcp`，�
 
 本地后端要调用它，需要在 LobeChat 里把 hbai MCP 服务器的地址指向这个公网 URL（**建议用用户级 MCP，不要改线上全局配置，避免影响生产**）：
 
-1. 打开本机 `http://localhost:9876` → 设置 → 工具 / MCP。
+1. 打开本机 `http://localhost:3010` → 设置 → 工具 / MCP。
 2. 添加 MCP 服务器，类型选 **Streamable HTTP**。
 3. URL 填：`https://lobe.cyan.zj.cn/mcp`
 4. Headers 加一行：`X-Mcp-Token: hbai-poc-2026`

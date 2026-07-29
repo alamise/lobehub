@@ -1,12 +1,15 @@
 // @vitest-environment node
+import { createRequire } from 'node:module';
 import { promisify } from 'node:util';
-import { zstdCompress, zstdDecompress } from 'node:zlib';
 
 import type { ExecutionSnapshot } from '@lobechat/agent-tracing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const compressZstd = promisify(zstdCompress);
-const decompressZstd = promisify(zstdDecompress);
+const require = createRequire(import.meta.url);
+const zlib = require('node:zlib');
+
+const compressZstd = zlib.zstdCompress ? promisify(zlib.zstdCompress) : null;
+const decompressZstd = zlib.zstdDecompress ? promisify(zlib.zstdDecompress) : null;
 
 // Stub FileS3 with vi.fn methods so we can assert calls + return canned data.
 const uploadBuffer = vi.fn();

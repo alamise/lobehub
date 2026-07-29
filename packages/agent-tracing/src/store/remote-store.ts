@@ -1,11 +1,21 @@
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { zstdDecompress } from 'node:zlib';
 
 import type { ExecutionSnapshot } from '../types';
 
-const decompressZstd = promisify(zstdDecompress);
+// `node:zlib` 是 CJS 模块，其 `zstdDecompress` 导出由惰性 getter 提供。部分
+// 打包器（如 `next dev` 使用的 Turbopack）的 CJS 命名导出探测无法静态识别它，
+// 导致具名导入解析为 `undefined`，进而 `promisify(undefined)` 在模块求值阶段
+// 崩溃。改为运行时 `require` 取模块对象、再访问该属性，可绕开此问题；并在
+// 该 API 不可用时优雅降级（本地无 zstd 快照时不影响使用）。
+const require = createRequire(import.meta.url);
+const zlib = require('node:zlib') as {
+  zstdDecompress?: (buf: Buffer, cb: (err: Error | null, result: Buffer) => void) => void;
+};
+
+const decompressZstd = zlib.zstdDecompress ? promisify(zlib.zstdDecompress) : null;
 
 const REMOTE_DIR = '_remote';
 const ENV_FILE = '.env';
@@ -139,7 +149,7 @@ export class RemoteSnapshotStore {
     // Sniff the zstd frame magic so the body is decoded by content, not URL
     // suffix — keeps legacy `.json` snapshots working alongside compressed ones.
     const body = Buffer.from(await res.arrayBuffer());
-    const decoded = isZstdFrame(body) ? await decompressZstd(body) : body;
+    const decoded = isZstdFrame(body) && decompressZstd ? await decompressZstd(body) : body;
     const snapshot = JSON.parse(decoded.toString('utf8')) as ExecutionSnapshot;
 
     // Cache locally as plain JSON for easy inspection.

@@ -1,5 +1,5 @@
+import { createRequire } from 'node:module';
 import { promisify } from 'node:util';
-import { zstdCompress, zstdDecompress } from 'node:zlib';
 
 import type {
   ITracingStore,
@@ -11,8 +11,13 @@ import debug from 'debug';
 
 import { FileS3 } from '@/server/modules/S3';
 
-const compressZstd = promisify(zstdCompress);
-const decompressZstd = promisify(zstdDecompress);
+// Turbopack 的 CJS 词法分析器无法静态识别 node:zlib 上 zstd* 这类惰性 getter 的
+// 具名导出，导致具名 import 得到 undefined。改为运行时 require 取实体。
+const require = createRequire(import.meta.url);
+const zlib = require('node:zlib');
+
+const compressZstd = zlib.zstdCompress ? promisify(zlib.zstdCompress) : null;
+const decompressZstd = zlib.zstdDecompress ? promisify(zlib.zstdDecompress) : null;
 
 const log = debug('lobe-server:llm-generation-tracing:s3');
 
