@@ -19,6 +19,23 @@
 - vite 默认就把 `/api` `/oidc` `/trpc` `/webapi` 代理到 `localhost:3010`（见 `vite.config.ts`），**无需改前端代码**。
 - 后端 `next dev` 通过 `.env.development.local` 把上述 infra 指向云端。
 
+## 前置要求（Node 版本，重要）
+
+本地 `next dev` 用到的 `node:zlib.zstdDecompress`（见 `packages/agent-tracing`）**只在 Node ≥ 22.15 才有**；生产构建 / 运行用的是 `node:24`。若本机 Node 过旧（22.0–22.14 或 20.x），首页会报 `TypeError: The "original" argument must be of type function. Received undefined`（来自 `agent-tracing` 模块求值阶段），且 `/trpc/lambda/config.getGlobalConfig` 路由 500。
+
+> **务必用 Node 24（或至少 ≥ 22.15）跑 `pnpm dev`**，与线上 `node:24` 保持一致，源码无需任何改动。
+
+仓库已放 `.nvmrc`（`24`）。切换方式（任选其一）：
+
+```bash
+# nvm
+nvm install 24 && nvm use 24
+# 或 fnm
+fnm use 24
+# 验证
+node -e "console.log(typeof require('node:zlib').zstdDecompress)" # 应输出 function
+```
+
 ## 一键启动
 
 ```bash
