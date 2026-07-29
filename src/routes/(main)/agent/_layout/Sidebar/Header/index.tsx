@@ -11,7 +11,7 @@ import Nav from './Nav';
 const HeaderInfo = memo<PropsWithChildren>(() => {
   return (
     <>
-      <SideBarHeaderLayout left={<Agent />} />
+      <SideBarHeaderLayout left={<Agent />} showBack={false} />
       <Nav />
     </>
   );

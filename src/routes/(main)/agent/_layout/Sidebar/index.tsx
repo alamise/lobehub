@@ -2,12 +2,12 @@ import React, { memo } from 'react';
 
 import { NavPanelPortal } from '@/features/NavPanel';
 
-import AgentSidebarContent from './Content';
+import SidebarContent from '../../../home/_layout/SidebarContent';
 
 const Sidebar = memo(() => {
   return (
     <NavPanelPortal navKey="agent">
-      <AgentSidebarContent />
+      <SidebarContent />
     </NavPanelPortal>
   );
 });

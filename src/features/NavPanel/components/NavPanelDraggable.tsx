@@ -123,7 +123,7 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
   // Defer DraggablePanel mount until system status hydrates; otherwise defaultSize
   // captures the pre-hydration default and the DOM drifts off NavigationBar's live width.
   const defaultWidthRef = useRef(0);
-  const isHomeNav = activeContent.key === 'home';
+  const isHomeNav = activeContent.key === 'home' || activeContent.key === 'agent';
   const minWidth = isHomeNav ? HOME_NAV_PANEL_MIN_WIDTH : NAV_PANEL_MIN_WIDTH;
 
   if (defaultWidthRef.current === 0 && isStatusInit) {
