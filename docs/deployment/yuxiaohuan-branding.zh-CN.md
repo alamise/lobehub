@@ -167,7 +167,7 @@ test ! -e /opt/program/lobe-app && echo 'lobe-app absent'
 检查 compose 语法：
 
 ```bash
-docker compose config >/tmp/lobehub-compose-check.yml
+docker compose config > /tmp/lobehub-compose-check.yml
 ```
 
 ### 6. 只重建应用服务
@@ -209,8 +209,8 @@ docker logs --tail=80 lobehub
 从本机验证网页和图标：
 
 ```bash
-curl -sSIL --max-time 20 https://lobe.cyan.zj.cn | sed -n '1,20p'
-curl -sSIL --max-time 20 https://lobe.cyan.zj.cn/favicon.ico | sed -n '1,20p'
+curl -sSIL --max-time 20 https://ai-hb.cyan.zj.cn | sed -n '1,20p'
+curl -sSIL --max-time 20 https://ai-hb.cyan.zj.cn/favicon.ico | sed -n '1,20p'
 ```
 
 ### 8. 回滚
@@ -229,4 +229,4 @@ docker logs --tail=80 lobehub
 - 不要直接在生产目录 `/opt/program/lobehub` 里构建源码；生产目录只放 compose、`.env` 和数据相关文件。
 - 构建目录 `/opt/program/lobehub-build` 可以删除 `node_modules`、`.next`、`dist`、`public/_spa` 等缓存产物，但通常不需要手动清理。
 - 如果只改静态图标，也仍然建议构建新镜像发布，保持线上内容和镜像标签一致。
-- 构建日志中的 QStash token 和 Better Auth secret 警告是现有构建期警告；只要最终镜像构建成功、容器启动正常，就不阻塞本次品牌/前端发布。
+- 构建日志中的 QStash token 和 Better Auth secret 警告是现有构建期警告；只要最终镜像构建成功、容器启动正常，就不阻塞本次品牌 / 前端发布。

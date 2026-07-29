@@ -95,13 +95,13 @@ onlyboxes 已由你配置为独立公网域名 `https://onlyboxes.cyan.zj.cn`（
 
 ## hbai-mcp（已在服务器暴露，无需新增反代）
 
-hbai-mcp 已通过 `proxy/mcp.conf` 暴露在 `https://lobe.cyan.zj.cn/mcp`，需要请求头 `X-Mcp-Token: hbai-poc-2026`。
+hbai-mcp 已通过 `proxy/mcp.conf` 暴露在 `https://ai-hb.cyan.zj.cn/mcp`，需要请求头 `X-Mcp-Token: hbai-poc-2026`。
 
 本地后端要调用它，需要在 LobeChat 里把 hbai MCP 服务器的地址指向这个公网 URL（**建议用用户级 MCP，不要改线上全局配置，避免影响生产**）：
 
 1. 打开本机 `http://localhost:3010` → 设置 → 工具 / MCP。
 2. 添加 MCP 服务器，类型选 **Streamable HTTP**。
-3. URL 填：`https://lobe.cyan.zj.cn/mcp`
+3. URL 填：`https://ai-hb.cyan.zj.cn/mcp`
 4. Headers 加一行：`X-Mcp-Token: hbai-poc-2026`
 5. 保存后用本地会话调用即可（用户级配置，不污染生产库里的 MCP 配置）。
 
