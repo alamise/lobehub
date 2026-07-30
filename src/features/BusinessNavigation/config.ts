@@ -7,12 +7,12 @@ import {
   FilePenLine,
   FileSearch,
   FileText,
-  MapPinned,
   Home,
+  type LucideIcon,
+  MapPinned,
   Radar,
   ScrollText,
   ShieldCheck,
-  type LucideIcon,
 } from 'lucide-react';
 
 export interface BusinessNavLeafItem {
@@ -151,7 +151,7 @@ export const businessNavOfficeGroup: BusinessNavGroup = {
     {
       icon: FilePenLine,
       key: 'office-document-format',
-      path: '/office/document-format',
+      path: '/page',
       title: '公文格式调整',
     },
   ],
