@@ -24,6 +24,7 @@ import {
   type EnterpriseArchive,
   type EnterpriseDetail,
   type EnterpriseFactory,
+  type EnvironmentalAssessmentProject,
   getEnterprise,
   getEnterpriseArchives,
   getEnterpriseGuideQuestions,
@@ -153,6 +154,63 @@ const styles = createStaticStyles(({ css }) => ({
     padding: 14px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
+    background: #fff;
+  `,
+  'moduleGrid': css`
+    display: grid;
+    gap: 12px;
+  `,
+  'moduleTable': css`
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 680px;
+      font-size: 12px;
+    }
+
+    th {
+      padding-block: 10px;
+      padding-inline: 12px;
+      border-block-end: 1px solid #e2e8f0;
+
+      color: #64748b;
+      text-align: start;
+
+      background: #f8fafc;
+    }
+
+    td {
+      padding-block: 10px;
+      padding-inline: 12px;
+      border-block-end: 1px solid #f1f5f9;
+
+      color: #334155;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-block-end: 0;
+    }
+  `,
+  'projectCard': css`
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+  `,
+  'projectHeader': css`
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 14px;
+    border-block-end: 1px solid #e2e8f0;
+
     background: #fff;
   `,
   'fieldGrid': css`
@@ -449,6 +507,246 @@ const EnterpriseFields = memo(
 );
 
 EnterpriseFields.displayName = 'EnterpriseFields';
+
+const moduleConfigs: Array<{
+  columns: Array<[string, string]>;
+  key: keyof EnvironmentalAssessmentProject['modules'];
+  title: string;
+}> = [
+  {
+    columns: [
+      ['approval_product_name', '审批产品名称'],
+      ['approval_productivity', '审批生产能力'],
+      ['unit_name', '单位'],
+    ],
+    key: 'products',
+    title: '主要产品产能',
+  },
+  {
+    columns: [
+      ['name', '工艺名称'],
+      ['description', '工艺说明'],
+      ['flow', '工艺流程'],
+    ],
+    key: 'processes',
+    title: '生产工艺',
+  },
+  {
+    columns: [
+      ['approval_facility_name', '审批生产设施名称'],
+      ['approval_facility_count', '审批数量'],
+      ['facility_model', '型号/规格'],
+      ['unit_name', '单位'],
+    ],
+    key: 'facilities',
+    title: '主要生产设施',
+  },
+  {
+    columns: [
+      ['category', '物料用途'],
+      ['approval_material_name', '审批物料名称'],
+      ['spec_param', '规格参数'],
+      ['approval_use_amount', '审批用量'],
+      ['unit_name', '单位'],
+    ],
+    key: 'materials',
+    title: '原料辅料',
+  },
+  {
+    columns: [
+      ['effluent_equipment_no', '设施编号'],
+      ['effluent_equipment_name', '设施名称'],
+      ['effluent_equipment_technics', '治理工艺'],
+      ['effluent_equipment_ability', '处理能力'],
+      ['effluent_equipment_location', '位置'],
+    ],
+    key: 'effluent_equipments',
+    title: '废水治理设施',
+  },
+  {
+    columns: [
+      ['effluent_outlet_no', '排放口编号'],
+      ['effluent_outlet_name', '排放口名称'],
+      ['effluent_outlet_pattern', '排放规律'],
+      ['effluent_outlet_direction', '排放去向'],
+      ['effluent_outlet_location', '位置'],
+    ],
+    key: 'effluent_outlets',
+    title: '废水排放口',
+  },
+  {
+    columns: [
+      ['fumes_equipment_no', '设施编号'],
+      ['fumes_equipment_name', '设施名称'],
+      ['fumes_equipment_technics', '治理工艺'],
+      ['fumes_equipment_ability', '处理能力'],
+      ['fumes_equipment_location', '位置'],
+    ],
+    key: 'fumes_equipments',
+    title: '废气治理设施',
+  },
+  {
+    columns: [
+      ['fumes_outlet_no', '排放口编号'],
+      ['fumes_outlet_name', '排放口名称'],
+      ['fumes_outlet_pattern', '排放规律'],
+      ['fumes_outlet_high', '排放口高度'],
+      ['fumes_outlet_inner_diameter', '内径'],
+      ['fumes_outlet_location', '位置'],
+    ],
+    key: 'fumes_outlets',
+    title: '废气排放口',
+  },
+  {
+    columns: [
+      ['name', '设施名称'],
+      ['no', '设施编号'],
+      ['scale', '规模'],
+      ['location', '位置'],
+    ],
+    key: 'solid_waste_facilities',
+    title: '固废堆场设施',
+  },
+  {
+    columns: [
+      ['pollution_discharge_type', '类别'],
+      ['pollution_discharge_name', '污染物名称'],
+      ['pollution_discharge_approval_amount', '审批排放总量'],
+      ['pollution_discharge_unit_name', '单位'],
+    ],
+    key: 'pollution_discharges',
+    title: '污染物排放总量',
+  },
+];
+
+const ModuleTable = memo(
+  ({
+    columns,
+    rows,
+    title,
+  }: {
+    columns: Array<[string, string]>;
+    rows: Record<string, unknown>[];
+    title: string;
+  }) => (
+    <Card size="small" title={title}>
+      {rows.length === 0 ? (
+        <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      ) : (
+        <div className={styles.moduleTable}>
+          <table>
+            <thead>
+              <tr>
+                {columns.map(([, label]) => (
+                  <th key={label}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={String(row.id || index)}>
+                  {columns.map(([key, label]) => (
+                    <td key={label}>{formatValue(row[key] as string | number | null)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  ),
+);
+
+ModuleTable.displayName = 'ModuleTable';
+
+const ProjectCard = memo(
+  ({
+    onOpenArchive,
+    project,
+  }: {
+    onOpenArchive: (archiveId: number) => void;
+    project: EnvironmentalAssessmentProject;
+  }) => {
+    const basic = project.basic_info;
+    const hasAnyModule = moduleConfigs.some((config) => project.modules[config.key]?.length > 0);
+
+    return (
+      <div className={styles.projectCard}>
+        <div className={styles.projectHeader}>
+          <div className="min-w-0">
+            <Typography.Text strong>
+              {formatValue((basic.project_name as string) || project.archive_title)}
+            </Typography.Text>
+            <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
+              {formatValue(project.archive_doc_no)} · {formatValue(project.archive_receive_time)}
+            </div>
+          </div>
+          {project.archive_id ? (
+            <Button size="small" onClick={() => onOpenArchive(project.archive_id!)}>
+              查看档案
+            </Button>
+          ) : null}
+        </div>
+        <div style={{ display: 'grid', gap: 12, padding: 14 }}>
+          <div className={styles.fieldGrid}>
+            <div>
+              <div className={styles.fieldLabel}>建设性质</div>
+              <div className={styles.fieldValue}>{formatValue(basic.project_nature as number)}</div>
+            </div>
+            <div>
+              <div className={styles.fieldLabel}>项目状态</div>
+              <div className={styles.fieldValue}>{formatValue(basic.project_status as number)}</div>
+            </div>
+            <div>
+              <div className={styles.fieldLabel}>环评文件类型</div>
+              <div className={styles.fieldValue}>
+                {formatValue(basic.evaluation_file_type as number)}
+              </div>
+            </div>
+            <div>
+              <div className={styles.fieldLabel}>项目总投资（万元）</div>
+              <div className={styles.fieldValue}>
+                {formatValue(basic.total_project_investment as number)}
+              </div>
+            </div>
+            <div>
+              <div className={styles.fieldLabel}>环保投资（万元）</div>
+              <div className={styles.fieldValue}>
+                {formatValue(basic.total_environmental_investment as number)}
+              </div>
+            </div>
+            <div>
+              <div className={styles.fieldLabel}>批复文号</div>
+              <div className={styles.fieldValue}>{formatValue(basic.approval_no as string)}</div>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className={styles.fieldLabel}>项目地址</div>
+              <div className={styles.fieldValue}>{formatValue(basic.address as string)}</div>
+            </div>
+          </div>
+
+          {hasAnyModule ? (
+            <div className={styles.moduleGrid}>
+              {moduleConfigs.map((config) => (
+                <ModuleTable
+                  columns={config.columns}
+                  key={config.key}
+                  rows={project.modules[config.key] || []}
+                  title={config.title}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty description="暂无环评项目模块数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </div>
+      </div>
+    );
+  },
+);
+
+ProjectCard.displayName = 'ProjectCard';
 
 const BusinessEnterpriseDetailPage = memo(() => {
   const navigate = useNavigate();
