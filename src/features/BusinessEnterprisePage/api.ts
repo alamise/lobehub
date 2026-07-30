@@ -22,6 +22,53 @@ export interface EnterpriseFactory {
   wgs_lon?: string;
 }
 
+export interface EnvironmentalProjectModules {
+  effluent_equipments: Record<string, unknown>[];
+  effluent_outlets: Record<string, unknown>[];
+  effluent_pollutions: Record<string, unknown>[];
+  facilities: Record<string, unknown>[];
+  fumes_equipments: Record<string, unknown>[];
+  fumes_outlets: Record<string, unknown>[];
+  fumes_pollutions: Record<string, unknown>[];
+  materials: Record<string, unknown>[];
+  pollution_discharges: Record<string, unknown>[];
+  processes: Record<string, unknown>[];
+  products: Record<string, unknown>[];
+  solid_waste_facilities: Record<string, unknown>[];
+  solid_waste_pollutions: Record<string, unknown>[];
+}
+
+export interface EnvironmentalAssessmentProject {
+  archive_category_code?: string | null;
+  archive_doc_no?: string | null;
+  archive_id?: number | null;
+  archive_receive_time?: string | null;
+  archive_title?: string | null;
+  basic_info: Record<string, unknown>;
+  id: number;
+  modules: EnvironmentalProjectModules;
+}
+
+export interface EnvironmentalAssessmentFactory extends EnterpriseFactory {
+  area?: string;
+  coordinate_text?: string;
+  dire_industry_name?: string;
+  env_leader_phone?: string;
+  env_leader_user_name?: string;
+  introduction?: string;
+  latest_report_date?: string | null;
+  projects: EnvironmentalAssessmentProject[];
+}
+
+export interface EnterpriseEnvironmentalAssessmentTree {
+  create_time?: string;
+  enterprise: EnterpriseDetail;
+  factories: EnvironmentalAssessmentFactory[];
+  factory_count: number;
+  project_count: number;
+  update_time?: string;
+}
+
 export interface EnterpriseArchive {
   category_code?: string;
   category_name?: string;
@@ -125,6 +172,13 @@ export const getEnterprises = (params: {
 
 export const getEnterprise = (id: number, authToken?: string | null) =>
   request<EnterpriseDetail>(`/${id}`, undefined, authToken);
+
+export const getEnterpriseEnvironmentalAssessment = (id: number, authToken?: string | null) =>
+  request<EnterpriseEnvironmentalAssessmentTree>(
+    `/${id}/environmental-assessment`,
+    undefined,
+    authToken,
+  );
 
 export const updateEnterprise = (
   id: number,
