@@ -7,6 +7,9 @@ import { type AnalyticsConfig } from '@/types/spaServerConfig';
 export const resolveViteDevOrigin = () =>
   `http://localhost:${Number(process.env.VITE_DEV_PORT) || 9876}`;
 
+export const resolveAuthViteDevOrigin = () =>
+  `http://localhost:${Number(process.env.AUTH_SPA_PORT) || 3013}`;
+
 const SERVER_CONFIG_PLACEHOLDER =
   /window\.__SERVER_CONFIG__\s*=\s*undefined;\s*\/\*\s*SERVER_CONFIG\s*\*\//;
 

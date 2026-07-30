@@ -38,9 +38,15 @@ import {
   getEnterprise,
   getEnterpriseArchives,
 } from '@/features/BusinessEnterprisePage/api';
+import {
+  getKnowledge,
+  getKnowledgePages,
+  listCategories as listKnowledgeCategories,
+} from '@/features/BusinessKnowledgeBasePage/api';
 import { useSession } from '@/libs/better-auth/auth-client';
 
 const LIST_PATH = '/enforcement/archive';
+const KNOWLEDGE_LIST_PATH = '/office/knowledge-base';
 const PAGE_SIZE = 500;
 
 const styles = createStaticStyles(({ css }) => ({
@@ -522,6 +528,7 @@ const BusinessArchiveDetailPage = memo(() => {
   const params = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const archiveId = Number.parseInt(params.id || '', 10);
+  const isKnowledgeSource = searchParams.get('source') === 'knowledge';
 
   const { data: session, isPending } = useSession();
   const authToken = useMemo(
@@ -564,7 +571,9 @@ const BusinessArchiveDetailPage = memo(() => {
 
     setArchiveLoading(true);
     try {
-      const data = await getAiArchive(archiveId, authToken);
+      const data = isKnowledgeSource
+        ? await getKnowledge(archiveId, authToken)
+        : await getAiArchive(archiveId, authToken);
       setArchive(data);
     } catch (error) {
       setArchive(null);
@@ -572,13 +581,15 @@ const BusinessArchiveDetailPage = memo(() => {
     } finally {
       setArchiveLoading(false);
     }
-  }, [archiveId, authToken]);
+  }, [archiveId, authToken, isKnowledgeSource]);
 
   const loadPages = useCallback(async () => {
     if (!Number.isFinite(archiveId) || archiveId <= 0) return;
     setPagesLoading(true);
     try {
-      const result = await getArchivePages(archiveId, { page: 1, size: PAGE_SIZE }, authToken);
+      const result = isKnowledgeSource
+        ? await getKnowledgePages(archiveId, { page: 1, size: PAGE_SIZE }, authToken)
+        : await getArchivePages(archiveId, { page: 1, size: PAGE_SIZE }, authToken);
       setPages(result.list || []);
     } catch (error) {
       setPages([]);
@@ -586,7 +597,7 @@ const BusinessArchiveDetailPage = memo(() => {
     } finally {
       setPagesLoading(false);
     }
-  }, [archiveId, authToken]);
+  }, [archiveId, authToken, isKnowledgeSource]);
 
   useEffect(() => {
     if (isPending) return;
@@ -596,10 +607,12 @@ const BusinessArchiveDetailPage = memo(() => {
 
   useEffect(() => {
     if (isPending) return;
-    getArchiveCategories(authToken)
+    const loadCategories = isKnowledgeSource ? listKnowledgeCategories : getArchiveCategories;
+
+    loadCategories(authToken)
       .then((data) => setCategories(data || []))
       .catch(() => setCategories([]));
-  }, [authToken, isPending]);
+  }, [authToken, isKnowledgeSource, isPending]);
 
   useEffect(() => {
     let active = true;
@@ -658,7 +671,7 @@ const BusinessArchiveDetailPage = memo(() => {
       navigate(-1);
       return;
     }
-    navigate(LIST_PATH);
+    navigate(isKnowledgeSource ? KNOWLEDGE_LIST_PATH : LIST_PATH);
   };
 
   const handlePrevPage = () => {
@@ -677,7 +690,7 @@ const BusinessArchiveDetailPage = memo(() => {
   };
 
   const handleOpenArchive = (id: number) => {
-    navigate(`/enforcement/archive/${id}`);
+    navigate(`/enforcement/archive/${id}${isKnowledgeSource ? '?source=knowledge' : ''}`);
   };
 
   const handleDownload = () => {

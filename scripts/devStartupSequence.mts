@@ -48,7 +48,9 @@ const findFreePort = async (startPort: number): Promise<number> => {
   for (let port = startPort; port < startPort + MAX_PORT_SCAN_ATTEMPTS; port++) {
     if (await isPortFree(port)) return port;
   }
-  throw new Error(`No free port found in range ${startPort}-${startPort + MAX_PORT_SCAN_ATTEMPTS - 1}`);
+  throw new Error(
+    `No free port found in range ${startPort}-${startPort + MAX_PORT_SCAN_ATTEMPTS - 1}`,
+  );
 };
 
 /**
@@ -83,6 +85,15 @@ const resolveVitePortEnv = async (): Promise<number> => {
   return port;
 };
 
+const resolveAuthVitePortEnv = async (): Promise<number> => {
+  const explicit = Number(process.env.AUTH_SPA_PORT);
+  const port = explicit || (await findFreePort(3013));
+
+  process.env.AUTH_SPA_PORT = String(port);
+
+  return port;
+};
+
 const NEXT_READY_TIMEOUT_MS = 180_000;
 const NEXT_READY_RETRY_MS = 400;
 const FORCE_KILL_TIMEOUT_MS = 5_000;
@@ -93,8 +104,10 @@ let nextPort = 3010;
 let nextRootUrl = `http://${NEXT_HOST}:${nextPort}/`;
 let nextProcess: ChildProcess | undefined;
 let viteProcess: ChildProcess | undefined;
+let authViteProcess: ChildProcess | undefined;
 let nextHandle: DevProcessHandle | undefined;
 let viteHandle: DevProcessHandle | undefined;
+let authViteHandle: DevProcessHandle | undefined;
 let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
 let shuttingDown = false;
 
@@ -235,11 +248,13 @@ const runNextBackgroundTasks = () => {
 };
 
 const terminateChildren = () => {
+  sendSignalToDevProcess(authViteHandle, 'SIGTERM');
   sendSignalToDevProcess(viteHandle, 'SIGTERM');
   sendSignalToDevProcess(nextHandle, 'SIGTERM');
 };
 
 const forceKillChildren = () => {
+  sendSignalToDevProcess(authViteHandle, 'SIGKILL');
   sendSignalToDevProcess(viteHandle, 'SIGKILL');
   sendSignalToDevProcess(nextHandle, 'SIGKILL');
 };
@@ -255,7 +270,12 @@ const hasChildSettled = (child?: ChildProcess) =>
 
 const clearForceKillTimerWhenChildrenSettle = () => {
   if (!shuttingDown) return;
-  if (hasChildSettled(nextProcess) && hasChildSettled(viteProcess)) clearForceKillTimer();
+  if (
+    hasChildSettled(nextProcess) &&
+    hasChildSettled(viteProcess) &&
+    hasChildSettled(authViteProcess)
+  )
+    clearForceKillTimer();
 };
 
 const shutdownAll = (signal: NodeJS.Signals) => {
@@ -275,7 +295,7 @@ const shutdownAll = (signal: NodeJS.Signals) => {
   }, FORCE_KILL_TIMEOUT_MS);
 };
 
-const watchChildExit = (child: ChildProcess, name: 'next' | 'vite') => {
+const watchChildExit = (child: ChildProcess, name: 'auth-vite' | 'next' | 'vite') => {
   child.once('exit', (code, signal) => {
     if (shuttingDown) {
       clearForceKillTimerWhenChildrenSettle();
@@ -295,7 +315,8 @@ const main = async () => {
   process.env.PORT = String(nextPort);
   nextRootUrl = `http://${NEXT_HOST}:${nextPort}/`;
   const vitePort = await resolveVitePortEnv();
-  console.log(`🔌 dev ports — next: ${nextPort}, vite: ${vitePort}`);
+  const authVitePort = await resolveAuthVitePortEnv();
+  console.log(`🔌 dev ports — next: ${nextPort}, vite: ${vitePort}, auth vite: ${authVitePort}`);
 
   const forwardedSignals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
   for (const sig of forwardedSignals) {
@@ -328,11 +349,15 @@ const main = async () => {
   viteProcess = runPackageScript('dev:spa');
   viteHandle = createDevProcessHandle({ isWindows, pid: viteProcess.pid });
   watchChildExit(viteProcess, 'vite');
+  authViteProcess = runPackageScript('dev:spa:auth');
+  authViteHandle = createDevProcessHandle({ isWindows, pid: authViteProcess.pid });
+  watchChildExit(authViteProcess, 'auth-vite');
   runNextBackgroundTasks();
 
   await Promise.race([
     new Promise((resolve) => nextProcess?.once('exit', resolve)),
     new Promise((resolve) => viteProcess?.once('exit', resolve)),
+    new Promise((resolve) => authViteProcess?.once('exit', resolve)),
   ]);
 };
 
@@ -346,6 +371,7 @@ export const __testing = {
   createDevProcessHandle,
   findFreePort,
   resolveNextPort,
+  resolveAuthVitePortEnv,
   resolveVitePortEnv,
   sendSignalToDevProcess,
 };

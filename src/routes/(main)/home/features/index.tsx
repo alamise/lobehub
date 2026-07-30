@@ -7,10 +7,15 @@ import {
   Bell,
   Building2,
   ClipboardList,
+  Cloud,
+  Database,
   FolderOpen,
   Landmark,
+  type LucideIcon,
+  Megaphone,
   Smartphone,
   User,
+  Waves,
 } from 'lucide-react';
 import { memo } from 'react';
 
@@ -127,6 +132,120 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     box-shadow: 0 10px 22px rgb(15 23 42 / 14%);
   `,
+  metricBars: css`
+    display: flex;
+    flex: 1;
+    gap: 5px;
+    align-items: flex-end;
+    justify-content: flex-end;
+
+    height: 66px;
+  `,
+  metricCard: css`
+    cursor: pointer;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    min-width: 0;
+    min-height: 168px;
+    padding-block: 26px;
+    padding-inline: 28px;
+    border: 1px solid #d9f0e7;
+    border-radius: 18px;
+
+    text-align: start;
+
+    background: #fff;
+    box-shadow: 0 7px 18px rgb(15 23 42 / 3%);
+
+    transition:
+      transform 0.18s ${cssVar.motionEaseOut},
+      box-shadow 0.18s ${cssVar.motionEaseOut},
+      border-color 0.18s ${cssVar.motionEaseOut};
+
+    &:hover {
+      transform: translateY(-3px);
+      border-color: #bce9d8;
+      box-shadow: 0 16px 34px rgb(8 163 115 / 10%);
+    }
+  `,
+  metricGrid: css`
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (width <= 1120px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (width <= 680px) {
+      grid-template-columns: 1fr;
+    }
+  `,
+  metricIcon: css`
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+
+    box-shadow: 0 11px 22px rgb(15 23 42 / 14%);
+  `,
+  metricLabel: css`
+    margin-block-start: 2px;
+
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: #5f6f82;
+  `,
+  metricSection: css`
+    margin-block-start: 54px;
+    padding-block: 0 20px;
+  `,
+  metricSubtitle: css`
+    margin-block: 10px 28px;
+
+    font-size: 18px;
+    font-weight: 500;
+    color: #5e6b7c;
+    text-align: center;
+  `,
+  metricTitle: css`
+    margin: 0;
+
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #162236;
+    text-align: center;
+
+    @media (width <= 680px) {
+      font-size: 28px;
+    }
+  `,
+  metricTop: css`
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: space-between;
+  `,
+  metricValue: css`
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 0.95;
+    color: #10172a;
+    text-align: end;
+
+    @media (width <= 680px) {
+      font-size: 42px;
+    }
+  `,
   page: css`
     min-height: 100%;
     color: #1f2a3a;
@@ -177,6 +296,16 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   `,
 }));
 
+interface MetricCard {
+  bars?: number[];
+  gradient: string;
+  icon: LucideIcon;
+  label: string;
+  path: string;
+  suffix?: string;
+  value: number;
+}
+
 const modules = [
   {
     accent: 'linear-gradient(135deg, #07819a 0%, #087b70 100%)',
@@ -211,6 +340,68 @@ const modules = [
     title: 'AI环评',
   },
 ];
+
+const metrics: MetricCard[] = [
+  {
+    bars: [93, 100, 96, 84, 66, 50, 41, 42, 52, 69],
+    gradient: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)',
+    icon: Building2,
+    label: '企业数',
+    path: '/enforcement/company',
+    value: 32705,
+  },
+  {
+    gradient: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+    icon: Cloud,
+    label: '空气优良率',
+    path: '/monitoring',
+    suffix: '%',
+    value: 94.4,
+  },
+  {
+    gradient: 'linear-gradient(135deg, #0891b2 0%, #0f766e 100%)',
+    icon: Waves,
+    label: '水环境质量',
+    path: '/monitoring',
+    suffix: '%',
+    value: 100,
+  },
+  {
+    bars: [93, 100, 96, 84, 66, 50, 41, 42, 52, 69],
+    gradient: 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)',
+    icon: ClipboardList,
+    label: '案件数',
+    path: '/enforcement/case',
+    value: 697,
+  },
+  {
+    bars: [82, 76, 68, 72, 65, 59, 61, 54, 48, 41],
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+    icon: Database,
+    label: 'PM2.5',
+    path: '/monitoring',
+    value: 41.2,
+  },
+  {
+    bars: [90, 99, 98, 87, 70, 53, 42, 41, 49, 65],
+    gradient: 'linear-gradient(135deg, #ec4899 0%, #e11d48 100%)',
+    icon: Megaphone,
+    label: '信访数',
+    path: '/decision/statistics',
+    value: 491,
+  },
+];
+
+const getDonutStyle = (percent: number) => {
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const normalized = Math.max(0, Math.min(100, percent));
+
+  return {
+    strokeDasharray: `${circumference} ${circumference}`,
+    strokeDashoffset: circumference * (1 - normalized / 100),
+  };
+};
 
 const Home = memo(() => {
   const navigate = useWorkspaceAwareNavigate();
@@ -422,6 +613,82 @@ const Home = memo(() => {
                 </div>
               </Flexbox>
             </Flexbox>
+          </section>
+
+          <section className={styles.metricSection}>
+            <h2 className={styles.metricTitle}>平台数据概览</h2>
+            <p className={styles.metricSubtitle}>核心业务数据总览，一键进入相关分析模块</p>
+
+            <div className={styles.metricGrid}>
+              {metrics.map((metric) => (
+                <button
+                  className={styles.metricCard}
+                  key={metric.label}
+                  type="button"
+                  onClick={() => navigate(metric.path)}
+                >
+                  <div className={styles.metricTop}>
+                    <div className={styles.metricIcon} style={{ background: metric.gradient }}>
+                      <Icon color="#fff" icon={metric.icon} size={32} />
+                    </div>
+                    <div>
+                      <div className={styles.metricValue}>
+                        {metric.value}
+                        {metric.suffix}
+                      </div>
+                      <div className={styles.metricLabel}>{metric.label}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+                    {metric.suffix ? (
+                      <svg
+                        aria-hidden
+                        height="56"
+                        style={{ color: '#10b981', flex: 'none' }}
+                        viewBox="0 0 56 56"
+                        width="56"
+                      >
+                        <circle
+                          cx="28"
+                          cy="28"
+                          fill="none"
+                          r="22"
+                          stroke="#d7dee8"
+                          strokeWidth="6"
+                        />
+                        <circle
+                          cx="28"
+                          cy="28"
+                          fill="none"
+                          r="22"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth="6"
+                          style={getDonutStyle(metric.value)}
+                          transform="rotate(-90 28 28)"
+                        />
+                      </svg>
+                    ) : (
+                      <div className={styles.metricBars}>
+                        {metric.bars?.map((height, index) => (
+                          <span
+                            key={`${metric.label}-${index}`}
+                            style={{
+                              background: '#10b981',
+                              borderRadius: 3,
+                              display: 'block',
+                              height: `${height}%`,
+                              width: 8,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
           </section>
         </section>
       </main>

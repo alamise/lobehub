@@ -1,5 +1,3 @@
-import type { Session } from '@/libs/better-auth/auth-client';
-
 export interface KnowledgeItem {
   ai_guide: string;
   category_code: string;
@@ -12,6 +10,21 @@ export interface KnowledgeItem {
   responsible_party: string;
   title: string;
   year: string;
+}
+
+export interface KnowledgePageItem {
+  content: string;
+  dpi?: number;
+  file_name: string;
+  governed_parse_result?: string;
+  id: number;
+  image_url?: string;
+  oss_path?: string;
+  page_num: number;
+  parse_error?: string;
+  parse_result?: string;
+  parse_status: string;
+  thumbnail_url?: string;
 }
 
 export interface KnowledgeCategory {
@@ -28,9 +41,6 @@ export interface PagedData<T> {
 }
 
 const KNOWLEDGE_API_BASE = '/api/v1/ai-knowledge';
-
-const getToken = (session?: Session | null): string | null =>
-  (session as { accessToken?: string } | null)?.accessToken ?? null;
 
 const authHeaders = (token?: string | null) => (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -53,7 +63,7 @@ const request = async <T>(path: string, options?: RequestInit, token?: string | 
     headers: {
       ...authHeaders(token),
       ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers || {}),
+      ...options?.headers,
     },
   });
   if (!response.ok) {
@@ -91,3 +101,22 @@ export const listKnowledge = (params: {
 
 export const listCategories = (authToken?: string | null) =>
   request<KnowledgeCategory[]>('/categories', undefined, authToken);
+
+export const getKnowledge = (id: number, authToken?: string | null) =>
+  request<KnowledgeItem>(`/${id}`, undefined, authToken);
+
+export const getKnowledgePages = (
+  id: number,
+  params: { page?: number; size?: number },
+  authToken?: string | null,
+) => {
+  const sp = new URLSearchParams();
+  if (params.page) sp.set('page', String(params.page));
+  if (params.size) sp.set('size', String(params.size));
+  const qs = sp.toString();
+  return request<PagedData<KnowledgePageItem>>(
+    `/${id}/pages${qs ? `?${qs}` : ''}`,
+    undefined,
+    authToken,
+  );
+};

@@ -1,7 +1,12 @@
 import { getServerFeatureFlagsValue } from '@/config/featureFlags';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
-import { buildAnalyticsConfig, fetchViteDevTemplate, renderSpaHtml } from '@/libs/spaHtml';
+import {
+  buildAnalyticsConfig,
+  fetchViteDevTemplate,
+  renderSpaHtml,
+  resolveAuthViteDevOrigin,
+} from '@/libs/spaHtml';
 import { type Locales, normalizeLocale } from '@/locales/resources';
 import { getServerAuthConfig } from '@/server/globalConfig/getServerAuthConfig';
 import { type AuthSPAServerConfig } from '@/types/spaServerConfig';
@@ -17,7 +22,7 @@ export function generateStaticParams() {
 const isDev = process.env.NODE_ENV === 'development';
 
 async function getTemplate(): Promise<string> {
-  if (isDev) return fetchViteDevTemplate('/index.auth.html');
+  if (isDev) return fetchViteDevTemplate('/index.auth.html', resolveAuthViteDevOrigin());
 
   const { authHtmlTemplate } = await import('../../authHtmlTemplate');
 
