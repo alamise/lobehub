@@ -9,7 +9,6 @@ import PageSidebarContent from '@/features/Pages/PageLayout/SidebarContent';
 import WorkspaceSettingsSideBarContent from '@/features/WorkspaceSetting/SideBar/Content';
 import ImageSidebarContent from '@/routes/(main)/(create)/image/_layout/Sidebar/Content';
 import VideoSidebarContent from '@/routes/(main)/(create)/video/_layout/Sidebar/Content';
-import AgentSidebarContent from '@/routes/(main)/agent/_layout/Sidebar/Content';
 import CommunitySidebarContent from '@/routes/(main)/community/_layout/Sidebar/Content';
 import EvalSidebarContent from '@/routes/(main)/eval/_layout/Sidebar/Content';
 import GroupSidebarContent from '@/routes/(main)/group/_layout/Sidebar/Content';
@@ -114,7 +113,7 @@ const NavPanel = memo(() => {
     isWorkspaceAgentRoute || isPersonalAgentRoute
       ? {
           key: AGENT_NAV_KEY,
-          node: <AgentSidebarContent />,
+          node: <SidebarContent />,
         }
       : null;
 

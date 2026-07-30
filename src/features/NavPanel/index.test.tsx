@@ -43,10 +43,6 @@ vi.mock('@/routes/(main)/settings/_layout/SidebarContent', () => ({
   default: () => <div>Personal settings sidebar</div>,
 }));
 
-vi.mock('@/routes/(main)/agent/_layout/Sidebar/Content', () => ({
-  default: () => <div>Agent sidebar</div>,
-}));
-
 vi.mock('@/routes/(main)/group/_layout/Sidebar/Content', () => ({
   default: () => <div>Group sidebar</div>,
 }));
@@ -129,7 +125,7 @@ describe('NavPanel', () => {
     expect(screen.queryByText('Stale home snapshot')).not.toBeInTheDocument();
   });
 
-  it('uses agent sidebar instead of a stale home snapshot on workspace agent routes', async () => {
+  it('uses the home sidebar instead of a stale home snapshot on workspace agent routes', async () => {
     pathname = '/lobe-team/agent/agent-1';
     const { default: NavPanel, NavPanelPortal } = await import('./index');
 
@@ -145,8 +141,20 @@ describe('NavPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('nav-panel')).toHaveAttribute('data-nav-key', 'agent');
     });
-    expect(screen.getByText('Agent sidebar')).toBeInTheDocument();
+    expect(screen.getByText('Home sidebar')).toBeInTheDocument();
     expect(screen.queryByText('Stale home snapshot')).not.toBeInTheDocument();
+  });
+
+  it('uses the home sidebar before the agent route portal registers', async () => {
+    pathname = '/agent/agent-1';
+    const { default: NavPanel } = await import('./index');
+
+    render(<NavPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nav-panel')).toHaveAttribute('data-nav-key', 'agent');
+    });
+    expect(screen.getByText('Home sidebar')).toBeInTheDocument();
   });
 
   it.each([
