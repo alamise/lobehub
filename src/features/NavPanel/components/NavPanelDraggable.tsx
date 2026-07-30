@@ -1,14 +1,13 @@
 'use client';
 
 import { DraggablePanel } from '@lobehub/ui';
-import { createStaticStyles, cssVar } from 'antd-style';
+import { createStaticStyles, cx } from 'antd-style';
 import { type ReactNode } from 'react';
-import { memo, Suspense, useMemo, useRef } from 'react';
+import { memo, Suspense, useRef } from 'react';
 
 import NavPanelUpgradeEntry from '@/business/client/features/NavPanelUpgradeEntry';
 import { isDesktop } from '@/const/version';
 import { TOGGLE_BUTTON_ID } from '@/features/NavPanel/ToggleLeftPanelButton';
-import Footer from '@/routes/(main)/home/_layout/Footer';
 import { USER_DROPDOWN_ICON_ID } from '@/routes/(main)/home/_layout/Header/components/User';
 import { useGlobalStore } from '@/store/global';
 import {
@@ -33,6 +32,44 @@ const draggableStyles = createStaticStyles(({ css, cssVar }) => ({
     height: 100%;
     min-height: 100%;
     max-height: 100%;
+  `,
+  darkPanel: css`
+    --ant-color-bg-container: #0f1b2d;
+    --ant-color-bg-elevated: #17263a;
+    --ant-color-bg-layout: #0f1b2d;
+    --ant-color-border: rgb(255 255 255 / 10%);
+    --ant-color-fill-quaternary: rgb(255 255 255 / 13%);
+    --ant-color-fill-secondary: rgb(255 255 255 / 8%);
+    --ant-color-fill-tertiary: rgb(255 255 255 / 6%);
+    --ant-color-text: #f3f7fb;
+    --ant-color-text-description: #9eafc5;
+    --ant-color-text-quaternary: #7e91aa;
+    --ant-color-text-secondary: #c6d3e3;
+    --ant-color-text-tertiary: #9eafc5;
+
+    color: #c6d3e3;
+    background: #0f1b2d;
+
+    .ant-breadcrumb .ant-breadcrumb-link {
+      color: #9eafc5;
+    }
+
+    .ant-breadcrumb a.ant-breadcrumb-link:hover {
+      color: #f3f7fb !important;
+    }
+
+    .ant-breadcrumb .ant-breadcrumb-separator {
+      color: #7e91aa;
+    }
+
+    #${BACK_BUTTON_ID} {
+      color: #c6d3e3;
+    }
+
+    #${BACK_BUTTON_ID}:hover {
+      color: #f3f7fb;
+      background: rgb(255 255 255 / 8%);
+    }
   `,
   inner: css`
     position: relative;
@@ -134,17 +171,7 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
       : storedWidth;
   }
 
-  const styles = useMemo(
-    () => ({
-      background: isHomeNav
-        ? '#0f1b2d'
-        : isDesktop && isMacOS()
-          ? 'transparent'
-          : cssVar.colorBgLayout,
-      zIndex: 11,
-    }),
-    [isHomeNav],
-  );
+  const styles = { background: '#0f1b2d', zIndex: 11 };
 
   if (defaultWidthRef.current === 0) {
     const pendingStoredWidth = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
@@ -158,7 +185,7 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
 
   return (
     <DraggablePanel
-      className={draggableStyles.panel}
+      className={cx(draggableStyles.panel, draggableStyles.darkPanel)}
       classNames={classNames}
       defaultSize={defaultSize}
       expand={expand}
@@ -179,7 +206,11 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
       <Suspense fallback={null}>
         <NavPanelUpgradeEntry />
       </Suspense>
-      <Suspense>{isHomeNav ? <HomeSidebarFooter /> : <Footer />}</Suspense>
+      {isHomeNav && (
+        <Suspense>
+          <HomeSidebarFooter />
+        </Suspense>
+      )}
     </DraggablePanel>
   );
 });
