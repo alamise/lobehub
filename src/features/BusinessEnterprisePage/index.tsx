@@ -1,29 +1,25 @@
 'use client';
 
-import { Button, Card, Input, Pagination, Space, Typography, message } from 'antd';
-import { Building2 } from 'lucide-react';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button } from '@lobehub/ui/base-ui';
+import { Card, Input, message, Pagination, Space, Typography } from 'antd';
+import { Building2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-
-import { useUrlPage } from '@/hooks/useUrlPage';
-
-import { useSession } from '@/libs/better-auth/auth-client';
-
-import {
-  getEnterprise,
-  getEnterprises,
-  type EnterpriseDetail,
-  type EnterpriseSummary,
-} from './api';
-import { EnterpriseDetailDrawer, EnterpriseTable } from './components';
-import { PAGE_SIZE } from './constants';
+import { useNavigate } from 'react-router';
 
 import BusinessPageContainer from '@/features/BusinessPageContainer';
+import { useUrlPage } from '@/hooks/useUrlPage';
+import { useSession } from '@/libs/better-auth/auth-client';
+
+import { type EnterpriseSummary, getEnterprises } from './api';
+import { EnterpriseTable } from './components';
+import { PAGE_SIZE } from './constants';
 
 const BusinessEnterprisePage = memo(() => {
+  const navigate = useNavigate();
   const { data: session, isPending } = useSession();
   const authToken = useMemo(
-    () => ((session as { accessToken?: string } | null | undefined)?.accessToken ?? null),
+    () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
   );
 
@@ -34,10 +30,6 @@ const BusinessEnterprisePage = memo(() => {
   const [total, setTotal] = useState(0);
   const [enterprises, setEnterprises] = useState<EnterpriseSummary[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailEnterprise, setDetailEnterprise] = useState<EnterpriseDetail | null>(null);
 
   const loadEnterprises = useCallback(async () => {
     setLoading(true);
@@ -75,18 +67,8 @@ const BusinessEnterprisePage = memo(() => {
     setPage(1);
   };
 
-  const openDetail = async (id: number) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    try {
-      const data = await getEnterprise(id, authToken);
-      setDetailEnterprise(data);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '企业详情加载失败');
-      setDetailOpen(false);
-    } finally {
-      setDetailLoading(false);
-    }
+  const openDetail = (id: number) => {
+    navigate(`/enforcement/company/${id}`);
   };
 
   if (isPending) {
@@ -116,14 +98,14 @@ const BusinessEnterprisePage = memo(() => {
           <Space wrap>
             <Input
               allowClear
-              onChange={(e) => setSearch(e.target.value)}
-              onPressEnter={handleSearch}
               placeholder="按企业名称搜索"
               prefix={<SearchOutlined />}
               style={{ width: 280 }}
               value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onPressEnter={handleSearch}
             />
-            <Button icon={<SearchOutlined />} onClick={handleSearch} type="primary">
+            <Button icon={<SearchOutlined />} type="primary" onClick={handleSearch}>
               搜索
             </Button>
             <Button onClick={handleClear}>清空</Button>
@@ -137,8 +119,12 @@ const BusinessEnterprisePage = memo(() => {
           <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <Typography.Text type="secondary">共 {total} 条记录</Typography.Text>
             <Pagination
+              showSizeChanger
               current={page}
               disabled={loading}
+              pageSize={size}
+              pageSizeOptions={[10, 20, 50, 100]}
+              total={total}
               onChange={(nextPage, nextSize) => {
                 if (nextSize !== size) {
                   setSize(nextSize);
@@ -147,21 +133,10 @@ const BusinessEnterprisePage = memo(() => {
                   setPage(nextPage);
                 }
               }}
-              pageSize={size}
-              pageSizeOptions={[10, 20, 50, 100]}
-              showSizeChanger
-              total={total}
             />
           </div>
         </div>
       </Card>
-
-      <EnterpriseDetailDrawer
-        enterprise={detailEnterprise}
-        loading={detailLoading}
-        onClose={() => setDetailOpen(false)}
-        open={detailOpen}
-      />
     </div>
   );
 });

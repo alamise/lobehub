@@ -14,51 +14,66 @@ import {
 const AiEnterpriseRoutes = new Hono();
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 20;
 const ENTERPRISE_ARCHIVE_SCOPE = 'ent';
 
 interface CompanySummaryRow extends QueryResultRow {
-  id: number;
-  name: string | null;
-  enterprise_no: string | null;
-  legal_person: string | null;
-  phone: string | null;
-  industry: string | null;
-  region_name: string | null;
   address: string | null;
   archive_count: string;
+  enterprise_no: string | null;
+  id: number;
+  industry: string | null;
+  legal_person: string | null;
+  name: string | null;
+  phone: string | null;
+  region_name: string | null;
 }
 
 interface CompanyDetailRow extends QueryResultRow {
-  id: number;
-  name: string | null;
-  former_name: string | null;
-  enterprise_no: string | null;
-  legal_person: string | null;
-  region_name: string | null;
   address: string | null;
-  phone: string | null;
+  archive_count: string;
+  business_license: string | null;
   contact_name: string | null;
   contact_phone: string | null;
-  industry: string | null;
-  business_license: string | null;
-  establish_time: string | null;
   create_time: string | null;
+  enterprise_no: string | null;
+  establish_time: string | null;
+  former_name: string | null;
+  id: number;
+  industry: string | null;
+  legal_person: string | null;
+  name: string | null;
+  phone: string | null;
+  region_name: string | null;
   update_time: string | null;
-  archive_count: string;
 }
 
 interface FactoryRow extends QueryResultRow {
-  id: number;
-  factory_name: string | null;
-  region_name: string | null;
   address: string | null;
-  pollutant_type: string | null;
-  run_status: string | null;
-  wgs_lon: string | null;
-  wgs_lat: string | null;
   create_time: string | null;
+  factory_name: string | null;
+  id: number;
+  pollutant_type: string | null;
+  region_name: string | null;
+  run_status: string | null;
+  wgs_lat: string | null;
+  wgs_lon: string | null;
 }
+
+interface UpdateCompanyPayload {
+  address?: string;
+  business_license?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  enterprise_no?: string;
+  former_name?: string;
+  industry?: string;
+  legal_person?: string;
+  name?: string;
+  phone?: string;
+  region_name?: string;
+}
+
+const trimPayloadValue = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
 const mapCompanySummary = (row: CompanySummaryRow) => ({
   address: row.address || '',
@@ -221,6 +236,59 @@ AiEnterpriseRoutes.get('/:id/guide-questions', async (c) => {
     .slice(0, 3);
 
   return success(c, { questions });
+});
+
+AiEnterpriseRoutes.put('/:id', async (c) => {
+  const companyId = toPositiveInt(c.req.param('id'), 0);
+  if (!companyId) throw new HTTPException(400, { message: 'Invalid company id' });
+
+  const payload = (await c.req.json().catch(() => ({}))) as UpdateCompanyPayload;
+  const name = trimPayloadValue(payload.name);
+  if (!name) throw new HTTPException(400, { message: '企业名称不能为空' });
+
+  const result = await withClient(async (client) => {
+    const exists = await client.query(
+      `SELECT 1 FROM co_polluter_enterprise WHERE id = $1 AND (deleted IS NULL OR deleted = 0)`,
+      [companyId],
+    );
+    if (!exists.rowCount) return undefined;
+
+    await client.query(
+      `UPDATE co_polluter_enterprise
+       SET name = $1,
+           former_name = $2,
+           enterprise_no = $3,
+           business_license = $4,
+           legal_person = $5,
+           contact_name = $6,
+           contact_phone = $7,
+           phone = $8,
+           industry = $9,
+           region_name = $10,
+           address = $11,
+           update_time = NOW()
+       WHERE id = $12`,
+      [
+        name,
+        trimPayloadValue(payload.former_name),
+        trimPayloadValue(payload.enterprise_no).toUpperCase(),
+        trimPayloadValue(payload.business_license).toUpperCase(),
+        trimPayloadValue(payload.legal_person),
+        trimPayloadValue(payload.contact_name),
+        trimPayloadValue(payload.contact_phone),
+        trimPayloadValue(payload.phone),
+        trimPayloadValue(payload.industry),
+        trimPayloadValue(payload.region_name),
+        trimPayloadValue(payload.address),
+        companyId,
+      ],
+    );
+
+    return true;
+  });
+
+  if (!result) throw new HTTPException(404, { message: '企业不存在' });
+  return success(c, null);
 });
 
 AiEnterpriseRoutes.get('/:id', async (c) => {

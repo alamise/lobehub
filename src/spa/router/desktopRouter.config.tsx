@@ -778,6 +778,13 @@ export const sharedMainAreaChildren: RouteObject[] = [
   },
   {
     element: dynamicElement(
+      () => import('@/features/BusinessEnterpriseDetailPage'),
+      'Desktop > Business > Enforcement > Company Detail',
+    ),
+    path: 'enforcement/company/:id',
+  },
+  {
+    element: dynamicElement(
       () => import('@/features/BusinessCasePage'),
       'Desktop > Business > Enforcement > Case',
     ),

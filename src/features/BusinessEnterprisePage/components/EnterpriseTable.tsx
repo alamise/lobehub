@@ -1,5 +1,6 @@
-import { Button, Table, Tag, Tooltip, Typography } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
+import { Button } from '@lobehub/ui/base-ui';
+import { Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { memo } from 'react';
 
@@ -44,7 +45,7 @@ export const EnterpriseTable = memo<Props>(({ enterprises, loading, onDetail }) 
       width: 90,
       render: (_, row) => (
         <Tooltip title="企业详情">
-          <Button icon={<EyeOutlined />} onClick={() => onDetail(row.id)} size="small" type="link">
+          <Button icon={<EyeOutlined />} size="small" type="link" onClick={() => onDetail(row.id)}>
             详情
           </Button>
         </Tooltip>

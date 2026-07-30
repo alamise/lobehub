@@ -45,6 +45,20 @@ export interface EnterpriseDetail extends EnterpriseSummary {
   former_name?: string;
 }
 
+export interface UpdateEnterpriseRequest {
+  address: string;
+  business_license: string;
+  contact_name: string;
+  contact_phone: string;
+  enterprise_no: string;
+  former_name: string;
+  industry: string;
+  legal_person: string;
+  name: string;
+  phone: string;
+  region_name: string;
+}
+
 export interface PagedData<T> {
   list: T[];
   page: number;
@@ -77,7 +91,7 @@ const request = async <T>(path: string, options?: RequestInit, token?: string | 
     headers: {
       ...authHeaders(token),
       ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers || {}),
+      ...options?.headers,
     },
   });
   if (!response.ok) {
@@ -102,11 +116,29 @@ export const getEnterprises = (params: {
   if (params.size) searchParams.set('size', String(params.size));
   if (params.search) searchParams.set('search', params.search);
   const query = searchParams.toString();
-  return request<PagedData<EnterpriseSummary>>(`/${query ? `?${query}` : ''}`, undefined, params.authToken);
+  return request<PagedData<EnterpriseSummary>>(
+    `/${query ? `?${query}` : ''}`,
+    undefined,
+    params.authToken,
+  );
 };
 
 export const getEnterprise = (id: number, authToken?: string | null) =>
   request<EnterpriseDetail>(`/${id}`, undefined, authToken);
+
+export const updateEnterprise = (
+  id: number,
+  data: UpdateEnterpriseRequest,
+  authToken?: string | null,
+) =>
+  request<void>(
+    `/${id}`,
+    {
+      body: JSON.stringify(data),
+      method: 'PUT',
+    },
+    authToken,
+  );
 
 export const getEnterpriseArchives = (id: number, authToken?: string | null) =>
   request<{ list: EnterpriseArchive[] }>(`/${id}/archives`, undefined, authToken);

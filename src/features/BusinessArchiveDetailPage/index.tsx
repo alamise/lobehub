@@ -7,13 +7,13 @@ import {
   FileImageOutlined,
   FileSearchOutlined,
   FileTextOutlined,
-  FullscreenOutlined,
   LeftOutlined,
   MessageOutlined,
   MinusOutlined,
   PlusOutlined,
   ReloadOutlined,
   RightOutlined,
+  SplitCellsOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import { Button, Segmented } from '@lobehub/ui/base-ui';
@@ -179,11 +179,13 @@ const styles = createStaticStyles(({ css }) => ({
     background: #ecfdf5;
   `,
   'leftPanel': css`
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 
     width: 288px;
     min-width: 288px;
+    min-height: 0;
     border-inline-end: 1px solid #e2e8f0;
 
     background: #f8fafc;
@@ -227,8 +229,10 @@ const styles = createStaticStyles(({ css }) => ({
     overflow: auto;
     display: flex;
     flex: 1;
+    align-items: flex-start;
     justify-content: center;
 
+    min-height: 0;
     padding: 32px;
 
     background: rgb(241 245 249 / 55%);
@@ -282,20 +286,41 @@ const styles = createStaticStyles(({ css }) => ({
     white-space: pre-wrap;
   `,
   'previewPanel': css`
+    overflow: hidden;
     display: flex;
     flex: 1;
     flex-direction: column;
 
     min-width: 0;
+    min-height: 0;
 
     background: #f1f5f9;
   `,
+  'previewSpin': css`
+    overflow: hidden;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+
+    min-height: 0;
+
+    .ant-spin-container {
+      overflow: hidden;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+
+      min-height: 0;
+    }
+  `,
   'rightPanel': css`
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 
     width: 384px;
     min-width: 384px;
+    min-height: 0;
     border-inline-start: 1px solid #e2e8f0;
 
     background: #fff;
@@ -911,7 +936,7 @@ const BusinessArchiveDetailPage = memo(() => {
               <span className={styles.toolbarDivider} />
               <Tooltip title="显示解析结果">
                 <Button
-                  icon={<FullscreenOutlined />}
+                  icon={<SplitCellsOutlined />}
                   size="small"
                   type={showText ? 'primary' : 'default'}
                   onClick={() => setShowText((value) => !value)}
@@ -923,7 +948,7 @@ const BusinessArchiveDetailPage = memo(() => {
             </div>
           </div>
 
-          <Spin spinning={pagesLoading} wrapperClassName="archive-preview-spin">
+          <Spin spinning={pagesLoading} wrapperClassName={styles.previewSpin}>
             <div className={styles.pageCanvas}>
               {previewMode === 'thumbnail' ? (
                 pages.length === 0 ? (

@@ -20,6 +20,22 @@ import {
 import { agentDocumentRouteMeta } from '@/features/AgentDocumentPage/routeMeta';
 import { taskRouteMeta, tasksRouteMeta } from '@/features/AgentTasks/routeMeta';
 import { agentsRouteMeta } from '@/features/AgentViewAll/routeMeta';
+import BusinessAIMapPage from '@/features/BusinessAIMapPage';
+import BusinessAirQualityPage from '@/features/BusinessAirQualityPage';
+import BusinessArchiveDetailPage from '@/features/BusinessArchiveDetailPage';
+import BusinessArchivePage from '@/features/BusinessArchivePage';
+import BusinessCaseDetailPage from '@/features/BusinessCaseDetailPage';
+import BusinessCasePage from '@/features/BusinessCasePage';
+import BusinessDocumentFormatPage from '@/features/BusinessDocumentFormatPage';
+import BusinessEiaPage from '@/features/BusinessEiaPage';
+import BusinessEmergencyPage from '@/features/BusinessEmergencyPage';
+import BusinessEnterpriseDetailPage from '@/features/BusinessEnterpriseDetailPage';
+import BusinessEnterprisePage from '@/features/BusinessEnterprisePage';
+import BusinessKnowledgeBasePage from '@/features/BusinessKnowledgeBasePage';
+import BusinessMinisterInterpretationPage from '@/features/BusinessMinisterInterpretationPage';
+import BusinessMonitoringPage from '@/features/BusinessMonitoringPage';
+import BusinessStatisticsPage from '@/features/BusinessStatisticsPage';
+import BusinessWaterQualityPage from '@/features/BusinessWaterQualityPage';
 import { pageRouteMeta } from '@/features/Pages/routeMeta';
 import {
   acceptanceRouteMeta,
@@ -121,21 +137,6 @@ import MemoryPreferencesPage from '@/routes/(main)/memory/preferences';
 import PageIndexPage from '@/routes/(main)/page';
 import DesktopPageLayout from '@/routes/(main)/page/_layout';
 import PageDetailPage from '@/routes/(main)/page/[id]';
-import BusinessArchiveDetailPage from '@/features/BusinessArchiveDetailPage';
-import BusinessArchivePage from '@/features/BusinessArchivePage';
-import BusinessCaseDetailPage from '@/features/BusinessCaseDetailPage';
-import BusinessCasePage from '@/features/BusinessCasePage';
-import BusinessEmergencyPage from '@/features/BusinessEmergencyPage';
-import BusinessEnterprisePage from '@/features/BusinessEnterprisePage';
-import BusinessWaterQualityPage from '@/features/BusinessWaterQualityPage';
-import BusinessAirQualityPage from '@/features/BusinessAirQualityPage';
-import BusinessStatisticsPage from '@/features/BusinessStatisticsPage';
-import BusinessMinisterInterpretationPage from '@/features/BusinessMinisterInterpretationPage';
-import BusinessEiaPage from '@/features/BusinessEiaPage';
-import BusinessAIMapPage from '@/features/BusinessAIMapPage';
-import BusinessMonitoringPage from '@/features/BusinessMonitoringPage';
-import BusinessKnowledgeBasePage from '@/features/BusinessKnowledgeBasePage';
-import BusinessDocumentFormatPage from '@/features/BusinessDocumentFormatPage';
 import ResourceLayout from '@/routes/(main)/resource/_layout';
 import ResourceHomePage from '@/routes/(main)/resource/(home)';
 import ResourceHomeLayout from '@/routes/(main)/resource/(home)/_layout';
@@ -676,6 +677,10 @@ export const sharedMainAreaChildren: RouteObject[] = [
   {
     element: <BusinessEnterprisePage />,
     path: 'enforcement/company',
+  },
+  {
+    element: <BusinessEnterpriseDetailPage />,
+    path: 'enforcement/company/:id',
   },
   {
     element: <BusinessCasePage />,
