@@ -23,10 +23,13 @@ import { useSession } from '@/libs/better-auth/auth-client';
 import {
   type EnterpriseArchive,
   type EnterpriseDetail,
+  type EnterpriseEnvironmentalAssessmentTree,
   type EnterpriseFactory,
+  type EnvironmentalAssessmentFactory,
   type EnvironmentalAssessmentProject,
   getEnterprise,
   getEnterpriseArchives,
+  getEnterpriseEnvironmentalAssessment,
   getEnterpriseGuideQuestions,
   updateEnterprise,
   type UpdateEnterpriseRequest,
@@ -761,6 +764,7 @@ const BusinessEnterpriseDetailPage = memo(() => {
   );
 
   const [enterprise, setEnterprise] = useState<EnterpriseDetail | null>(null);
+  const [assessment, setAssessment] = useState<EnterpriseEnvironmentalAssessmentTree | null>(null);
   const [archives, setArchives] = useState<EnterpriseArchive[]>([]);
   const [categories, setCategories] = useState<ArchiveCategory[]>([]);
   const [guideQuestions, setGuideQuestions] = useState<string[]>([]);
@@ -784,19 +788,33 @@ const BusinessEnterpriseDetailPage = memo(() => {
       else setLoading(true);
 
       try {
-        const [enterpriseData, archivesData, categoryData, questionsData] = await Promise.all([
-          getEnterprise(enterpriseId, authToken),
-          getEnterpriseArchives(enterpriseId, authToken),
-          getArchiveCategories(authToken),
-          getEnterpriseGuideQuestions(enterpriseId, authToken),
-        ]);
+        const enterpriseData = await getEnterprise(enterpriseId, authToken);
+        const [assessmentResult, archivesResult, categoryResult, questionsResult] =
+          await Promise.allSettled([
+            getEnterpriseEnvironmentalAssessment(enterpriseId, authToken),
+            getEnterpriseArchives(enterpriseId, authToken),
+            getArchiveCategories(authToken),
+            getEnterpriseGuideQuestions(enterpriseId, authToken),
+          ]);
+
         setEnterprise(enterpriseData);
         setForm(buildFormState(enterpriseData));
-        setArchives(archivesData.list || []);
-        setCategories(categoryData || []);
-        setGuideQuestions(questionsData.questions || []);
+        setAssessment(assessmentResult.status === 'fulfilled' ? assessmentResult.value : null);
+        setArchives(archivesResult.status === 'fulfilled' ? archivesResult.value.list || [] : []);
+        setCategories(categoryResult.status === 'fulfilled' ? categoryResult.value || [] : []);
+        setGuideQuestions(
+          questionsResult.status === 'fulfilled' ? questionsResult.value.questions || [] : [],
+        );
+
+        const degraded =
+          assessmentResult.status === 'rejected' ||
+          archivesResult.status === 'rejected' ||
+          categoryResult.status === 'rejected' ||
+          questionsResult.status === 'rejected';
+        if (degraded) message.warning('企业详情部分模块加载失败，已显示可用数据');
       } catch (error) {
         setEnterprise(null);
+        setAssessment(null);
         setArchives([]);
         message.error(error instanceof Error ? error.message : '企业详情加载失败');
       } finally {
@@ -841,7 +859,8 @@ const BusinessEnterpriseDetailPage = memo(() => {
     safeArchivePage * ARCHIVE_PAGE_SIZE,
   );
 
-  const factories: EnterpriseFactory[] = enterprise?.factories || [];
+  const factories: Array<EnterpriseFactory | EnvironmentalAssessmentFactory> =
+    assessment?.factories || enterprise?.factories || [];
 
   const updateViewParams = (updates: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
@@ -1208,53 +1227,70 @@ const BusinessEnterpriseDetailPage = memo(() => {
                       <Empty description="暂无厂区信息" />
                     ) : (
                       <div style={{ display: 'grid', gap: 12 }}>
-                        {factories.map((factory) => (
-                          <div className={styles.factoryItem} key={factory.id}>
-                            <Typography.Text strong>
-                              {factory.factory_name || '未命名厂区'}
-                            </Typography.Text>
-                            <div className={styles.fieldGrid} style={{ marginTop: 12 }}>
-                              <div>
-                                <div className={styles.fieldLabel}>行政区划</div>
-                                <div className={styles.fieldValue}>
-                                  {formatValue(factory.region_name)}
+                        {factories.map((factory) => {
+                          const projects =
+                            'projects' in factory
+                              ? (factory.projects as EnvironmentalAssessmentProject[])
+                              : [];
+
+                          return (
+                            <div className={styles.factoryItem} key={factory.id}>
+                              <Typography.Text strong>
+                                {factory.factory_name || '未命名厂区'}
+                              </Typography.Text>
+                              <div className={styles.fieldGrid} style={{ marginTop: 12 }}>
+                                <div>
+                                  <div className={styles.fieldLabel}>行政区划</div>
+                                  <div className={styles.fieldValue}>
+                                    {formatValue(factory.region_name)}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className={styles.fieldLabel}>运行状态</div>
+                                  <div className={styles.fieldValue}>
+                                    {formatValue(factory.run_status)}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className={styles.fieldLabel}>污染物类型</div>
+                                  <div className={styles.fieldValue}>
+                                    {formatValue(factory.pollutant_type)}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className={styles.fieldLabel}>经纬度</div>
+                                  <div className={styles.fieldValue}>
+                                    {factory.wgs_lon || factory.wgs_lat
+                                      ? `${factory.wgs_lon || '-'}, ${factory.wgs_lat || '-'}`
+                                      : '-'}
+                                  </div>
+                                </div>
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                  <div className={styles.fieldLabel}>地址</div>
+                                  <div className={styles.fieldValue}>
+                                    {formatValue(factory.address)}
+                                  </div>
                                 </div>
                               </div>
-                              <div>
-                                <div className={styles.fieldLabel}>运行状态</div>
-                                <div className={styles.fieldValue}>
-                                  {formatValue(factory.run_status)}
-                                </div>
-                              </div>
-                              <div>
-                                <div className={styles.fieldLabel}>污染物类型</div>
-                                <div className={styles.fieldValue}>
-                                  {formatValue(factory.pollutant_type)}
-                                </div>
-                              </div>
-                              <div>
-                                <div className={styles.fieldLabel}>经纬度</div>
-                                <div className={styles.fieldValue}>
-                                  {factory.wgs_lon || factory.wgs_lat
-                                    ? `${factory.wgs_lon || '-'}, ${factory.wgs_lat || '-'}`
-                                    : '-'}
-                                </div>
-                              </div>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <div className={styles.fieldLabel}>地址</div>
-                                <div className={styles.fieldValue}>
-                                  {formatValue(factory.address)}
-                                </div>
+                              <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                                {projects.length === 0 ? (
+                                  <Empty
+                                    description="该厂区暂无环评项目数据"
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                  />
+                                ) : (
+                                  projects.map((project) => (
+                                    <ProjectCard
+                                      key={project.id}
+                                      project={project}
+                                      onOpenArchive={handleOpenArchive}
+                                    />
+                                  ))
+                                )}
                               </div>
                             </div>
-                            <div style={{ marginTop: 12 }}>
-                              <Empty
-                                description="环评项目模块接口尚未迁移到新系统"
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1300,12 +1336,6 @@ const BusinessEnterpriseDetailPage = memo(() => {
                       </div>
                     )}
                   </Card>
-                  <div style={{ marginTop: 14 }}>
-                    <Empty
-                      description="企业问答流式接口尚未接入新系统"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    />
-                  </div>
                   <Input.TextArea
                     autoSize={{ maxRows: 4, minRows: 3 }}
                     placeholder="请输入关于当前企业的问题"

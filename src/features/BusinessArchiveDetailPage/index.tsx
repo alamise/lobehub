@@ -681,7 +681,7 @@ const BusinessArchiveDetailPage = memo(() => {
   };
 
   const handleDownload = () => {
-    message.info('下载原 PDF 的接口尚未接入新系统');
+    message.info('原 PDF 暂不可下载');
   };
 
   const toggleCategory = (code: string) => {
@@ -1104,10 +1104,7 @@ const BusinessArchiveDetailPage = memo(() => {
             >
               <div className={styles.chatPlaceholder}>
                 <MessageOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-                <Typography.Text type="secondary">当前档案问答接口尚未接入新系统</Typography.Text>
-                <Typography.Text style={{ fontSize: 12 }} type="secondary">
-                  页面结构已按旧版保留，后续可直接接入流式问答。
-                </Typography.Text>
+                <Typography.Text type="secondary">暂无问答记录</Typography.Text>
               </div>
               <Input.TextArea
                 autoSize={{ maxRows: 4, minRows: 3 }}
