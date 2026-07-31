@@ -28,6 +28,7 @@ import BusinessCaseDetailPage from '@/features/BusinessCaseDetailPage';
 import BusinessCasePage from '@/features/BusinessCasePage';
 import BusinessDocumentFormatPage from '@/features/BusinessDocumentFormatPage';
 import BusinessEiaPage from '@/features/BusinessEiaPage';
+import BusinessEiaWizardPage from '@/features/BusinessEiaWizardPage';
 import BusinessEmergencyPage from '@/features/BusinessEmergencyPage';
 import BusinessEnterpriseDetailPage from '@/features/BusinessEnterpriseDetailPage';
 import BusinessEnterprisePage from '@/features/BusinessEnterprisePage';
@@ -697,6 +698,14 @@ export const sharedMainAreaChildren: RouteObject[] = [
   {
     element: <BusinessEiaPage />,
     path: 'approval/eia',
+  },
+  {
+    element: <BusinessEiaWizardPage />,
+    path: 'approval/eia/new',
+  },
+  {
+    element: <BusinessEiaWizardPage />,
+    path: 'approval/eia/:recordId/edit/:stepId',
   },
   {
     element: <BusinessAIMapPage />,

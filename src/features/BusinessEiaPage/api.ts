@@ -1,21 +1,7 @@
-import type { Session } from '@/libs/better-auth/auth-client';
+import type { AssessmentStepState, AssessmentWorkflowRecord } from './shared';
 
-export interface EiaStepState {
-  content?: string;
-  status?: string;
-  data?: unknown;
-}
-
-export interface EiaRecord {
-  id: number;
-  bizId: string;
-  summary: string;
-  currentStep: string;
-  completed: boolean;
-  steps: Record<string, EiaStepState>;
-  createdAt: string;
-  updatedAt: string;
-}
+export type EiaStepState = AssessmentStepState;
+export type EiaRecord = AssessmentWorkflowRecord;
 
 export interface PagedData<T> {
   list: T[];
@@ -26,10 +12,14 @@ export interface PagedData<T> {
 
 const EIA_API_BASE = '/api/v1/ai-eia';
 
-const getToken = (session?: Session | null): string | null =>
-  (session as { accessToken?: string } | null)?.accessToken ?? null;
+export const getEiaAuthToken = (session?: unknown): string | null =>
+  (session as { accessToken?: string } | null | undefined)?.accessToken ?? null;
 
-const authHeaders = (token?: string | null) => (token ? { Authorization: `Bearer ${token}` } : {});
+const authHeaders = (token?: string | null): Headers => {
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return headers;
+};
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const text = await response.text();
@@ -45,21 +35,23 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 
 const request = async <T>(path: string, options?: RequestInit, token?: string | null) => {
   const isJsonBody = options?.body != null && !(options.body instanceof FormData);
+  const headers = new Headers(options?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (isJsonBody) headers.set('Content-Type', 'application/json');
+
   const response = await fetch(`${EIA_API_BASE}${path}`, {
     ...options,
-    headers: {
-      ...authHeaders(token),
-      ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(options?.headers || {}),
-    },
+    headers,
   });
   if (!response.ok) {
+    let messageText = `HTTP ${response.status}`;
     try {
-      const err = (await response.json()) as { error?: string; msg?: string };
-      throw new Error(err.msg || err.error || `HTTP ${response.status}`);
+      const err = (await response.json()) as { error?: string; message?: string; msg?: string };
+      messageText = err.msg || err.message || err.error || messageText;
     } catch {
-      throw new Error(`HTTP ${response.status}`);
+      /* 保留默认 HTTP 状态描述 */
     }
+    throw new Error(messageText);
   }
   return parseResponse<T>(response);
 };
@@ -79,27 +71,49 @@ export const listEia = (params: {
 };
 
 export const createEia = (summary_text: string, authToken?: string | null) =>
-  request<EiaRecord>(
-    '/',
-    { method: 'POST', body: JSON.stringify({ summary_text }) },
-    authToken,
-  );
+  request<EiaRecord>('/', { body: JSON.stringify({ summary_text }), method: 'POST' }, authToken);
 
 export const getEia = (id: number, authToken?: string | null) =>
   request<EiaRecord>(`/${id}`, undefined, authToken);
 
-export const updateEia = (id: number, payload: Partial<EiaRecord>, authToken?: string | null) =>
+export const updateEia = (
+  id: number,
+  payload: Pick<EiaRecord, 'completed' | 'currentStep' | 'steps'>,
+  authToken?: string | null,
+) =>
   request<EiaRecord>(
     `/${id}`,
     {
-      method: 'PUT',
       body: JSON.stringify({
-        currentStep: payload.currentStep,
         completed: payload.completed,
+        currentStep: payload.currentStep,
         steps: payload.steps,
       }),
+      method: 'PUT',
     },
     authToken,
+  );
+
+/**
+ * AI 分析 / 判定（对应旧 POST /api/eia-assessments/:id/analyze）
+ * stepId: industry | type | admission | conclusion
+ * targetId: admission 步骤下的子步骤 id，空间维度写 `spatial:<aspectId>`
+ */
+export const analyzeEia = (params: {
+  authToken?: string | null;
+  id: number;
+  signal?: AbortSignal;
+  stepId: string;
+  targetId?: string;
+}) =>
+  request<EiaRecord>(
+    `/${params.id}/analyze`,
+    {
+      body: JSON.stringify({ stepId: params.stepId, targetId: params.targetId || '' }),
+      method: 'POST',
+      signal: params.signal,
+    },
+    params.authToken,
   );
 
 export const deleteEia = (id: number, authToken?: string | null) =>
@@ -107,3 +121,16 @@ export const deleteEia = (id: number, authToken?: string | null) =>
 
 export const clearEia = (authToken?: string | null) =>
   request<null>('/', { method: 'DELETE' }, authToken);
+
+/** 导出全部判定记录为 DOCX（后端 jszip 生成 WordprocessingML） */
+export const exportEiaDocx = async (authToken?: string | null) => {
+  const response = await fetch(`${EIA_API_BASE}/export`, { headers: authHeaders(authToken) });
+  if (!response.ok) throw new Error(`导出失败：HTTP ${response.status}`);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `ai-assessment-results-${new Date().toISOString().slice(0, 10)}.docx`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};

@@ -181,6 +181,36 @@ const BizUtilityStyle = createGlobalStyle`
   .overflow-auto { overflow: auto; }
   .overflow-y-auto { overflow-y: auto; }
 
+  /* ---- 环评页：lucide Loader2 旋转动画 ---- */
+  @keyframes eia-spin { to { transform: rotate(360deg); } }
+  .eia-spin { animation: eia-spin 1s linear infinite; }
+
+  /* ---- 环评页补齐的工具类（旧系统 Tailwind 语义等价实现） ---- */
+  .min-h-full { min-height: 100%; }
+  .rounded-2xl { border-radius: 16px; }
+  .text-3xl { font-size: 30px; line-height: 36px; }
+  .text-2xl { font-size: 24px; line-height: 32px; }
+  .font-semibold { font-weight: 600; }
+  .leading-7 { line-height: 28px; }
+  .bg-orange-50 { background-color: #fff7ed; }
+  .text-orange-600 { color: #ea580c; }
+  .text-orange-700 { color: #c2410c; }
+  .text-emerald-700 { color: #047857; }
+  .text-rose-700 { color: #be123c; }
+  .text-slate-900 { color: #0f172a; }
+  .border-slate-200 { border-color: #e2e8f0; }
+  .border-emerald-200 { border-color: #a7f3d0; }
+  .border-amber-200 { border-color: #fde68a; }
+  .border-orange-200 { border-color: #fed7aa; }
+  .border-rose-200 { border-color: #fecdd3; }
+  .bg-emerald-100 { background-color: #d1fae5; }
+  .bg-slate-100 { background-color: #f1f5f9; }
+  .bg-slate-900 { background-color: #0f172a; }
+  .min-w-28 { min-width: 112px; }
+  .min-w-36 { min-width: 144px; }
+  .max-w-2xl { max-width: 672px; }
+  .break-all { word-break: break-all; }
+
   /* ---- responsive: sm >= 640px ---- */
   @media (min-width: 640px) {
     .sm\\:flex-row { flex-direction: row; }
@@ -214,26 +244,24 @@ interface BusinessPageContainerProps {
   maxWidth?: number;
 }
 
-const BusinessPageContainer = memo<BusinessPageContainerProps>(
-  ({ children, maxWidth = 1280 }) => (
-    <Flexbox height={'100%'} style={{ overflow: 'hidden', position: 'relative' }} width={'100%'}>
-      <BizUtilityStyle />
-      <Flexbox flex={1} style={{ overflowY: 'auto' }} width={'100%'}>
-        <div
-          style={{
-            marginInline: 'auto',
-            maxWidth,
-            paddingBlock: '24px 48px',
-            paddingInline: 24,
-            width: '100%',
-          }}
-        >
-          {children}
-        </div>
-      </Flexbox>
+const BusinessPageContainer = memo<BusinessPageContainerProps>(({ children, maxWidth = 1280 }) => (
+  <Flexbox height={'100%'} style={{ overflow: 'hidden', position: 'relative' }} width={'100%'}>
+    <BizUtilityStyle />
+    <Flexbox flex={1} style={{ overflowY: 'auto' }} width={'100%'}>
+      <div
+        style={{
+          marginInline: 'auto',
+          maxWidth,
+          paddingBlock: '24px 48px',
+          paddingInline: 24,
+          width: '100%',
+        }}
+      >
+        {children}
+      </div>
     </Flexbox>
-  ),
-);
+  </Flexbox>
+));
 
 BusinessPageContainer.displayName = 'BusinessPageContainer';
 

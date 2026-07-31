@@ -37,3 +37,5 @@ docs/.local
 
 # MCP tools
 /.serena/**
+# 业务页 Tailwind 工具类等价实现：含 \! 与 \/ 转义类名，stylelint 选择器解析器无法处理
+src/features/BusinessPageContainer/index.tsx

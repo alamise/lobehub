@@ -1,426 +1,293 @@
 'use client';
 
-import {
-  Badge,
-  Button,
-  Card,
-  Drawer,
-  Input,
-  Modal,
-  Pagination,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
-import {
-  DeleteOutlined,
-  EditOutlined,
-  FileTextOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { FileText } from 'lucide-react';
-import { memo, useCallback, useEffect, useState } from 'react';
-
-import { useUrlPage } from '@/hooks/useUrlPage';
-
-import { useSession } from '@/libs/better-auth/auth-client';
-
-import {
-  clearEia,
-  createEia,
-  deleteEia,
-  getEia,
-  listEia,
-  updateEia,
-  type EiaRecord,
-  type EiaStepState,
-} from './api';
+import { Button } from '@lobehub/ui/base-ui';
+import { Input, message } from 'antd';
+import { Download, Plus, Search, Trash2 } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import BusinessPageContainer from '@/features/BusinessPageContainer';
+import { useSession } from '@/libs/better-auth/auth-client';
 
-const PAGE_SIZE = 20;
-const STEP_LABELS: Record<string, string> = {
-  summary: '摘要',
-  industry: '行业归类',
-  type: '环评类型',
-  admission: '准入判定',
-  conclusion: '结论',
-};
-const STEP_ORDER = ['summary', 'industry', 'type', 'admission', 'conclusion'];
+import { clearEia, deleteEia, exportEiaDocx, getEiaAuthToken, listEia } from './api';
+import type { AssessmentWorkflowRecord } from './shared';
+import { getAssessmentRecordRoute } from './shared';
+import { C, roseOutlineBtn } from './theme';
 
-const emptySteps = (): Record<string, EiaStepState> => ({
-  summary: { content: '' },
-  industry: { content: '' },
-  type: { content: '' },
-  admission: { content: '' },
-  conclusion: { content: '' },
-});
-
+/**
+ * C1 AI 环评记录列表页：1:1 复刻旧 `pages/approvals/AssessmentRecords.tsx`
+ * 顶部标题/说明 + 「AI环评（新建）/ 导出 DOCX / 清空」三按钮，关键词搜索 + 总数，
+ * 四列表格（时间 / 建设内容 / 状态 / 操作），操作列按完成状态展示「查看详情」或「继续判定」，外加「删除」。
+ */
 const BusinessEiaPage = memo(() => {
+  const navigate = useNavigate();
   const { data: session } = useSession();
-  const token = (session as { accessToken?: string } | null)?.accessToken ?? null;
+  const authToken = getEiaAuthToken(session);
 
-  const [items, setItems] = useState<EiaRecord[]>([]);
-  const [total, setTotal] = useState(0);
-  const [size, setSize] = useState(PAGE_SIZE);
-  const [page, setPage] = useUrlPage();
-  const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [searchKw, setSearchKw] = useState('');
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [summaryInput, setSummaryInput] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [current, setCurrent] = useState<EiaRecord | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editSteps, setEditSteps] = useState<Record<string, EiaStepState>>(emptySteps());
-  const [editStep, setEditStep] = useState('summary');
-  const [editCompleted, setEditCompleted] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listEia({ authToken: token, keyword: searchKw || undefined, page, size });
-      setItems(res.list || []);
-      setTotal(res.total || 0);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, searchKw, page, size]);
+  const [records, setRecords] = useState<AssessmentWorkflowRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingRecordId, setDeletingRecordId] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const result = await listEia({ authToken, page: 1, size: 200 });
+        if (!cancelled) setRecords(Array.isArray(result?.list) ? result.list : []);
+      } catch (error) {
+        if (!cancelled) message.error(error instanceof Error ? error.message : '加载记录失败');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
     void load();
-  }, [load]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
 
-  const openCreate = () => {
-    setSummaryInput('');
-    setCreateOpen(true);
-  };
+  const filteredRecords = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return records;
+    return records.filter((record) =>
+      `${record.steps.summary.content} ${record.completed ? '已完成' : '未完成'}`
+        .toLowerCase()
+        .includes(normalizedKeyword),
+    );
+  }, [keyword, records]);
 
-  const handleCreate = async () => {
-    if (!summaryInput.trim()) {
-      message.warning('请填写环评摘要');
-      return;
-    }
-    setCreating(true);
+  const handleDeleteRecord = async (record: AssessmentWorkflowRecord) => {
+    if (deletingRecordId) return;
+    if (!globalThis.confirm('确认删除该条环评判定记录吗？删除后不可恢复。')) return;
     try {
-      const rec = await createEia(summaryInput.trim(), token);
-      message.success('已创建环评记录');
-      setCreateOpen(false);
-      setPage(1);
-      setSearchKw('');
-      await load();
-      openDetail(rec.id);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '创建失败');
+      setDeletingRecordId(record.id);
+      await deleteEia(record.id, authToken);
+      setRecords((current) => current.filter((item) => item.id !== record.id));
+      message.success('记录已删除');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除失败');
     } finally {
-      setCreating(false);
+      setDeletingRecordId(null);
     }
   };
 
-  const openDetail = async (id: number) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
+  const handleExport = async () => {
     try {
-      const rec = await getEia(id, token);
-      setCurrent(rec);
-      setEditSteps({ ...emptySteps(), ...rec.steps });
-      setEditStep(rec.currentStep || 'summary');
-      setEditCompleted(rec.completed);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '加载详情失败');
-      setDetailOpen(false);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!current) return;
-    const summary = editSteps.summary?.content || '';
-    if (!summary.trim()) {
-      message.warning('摘要不能为空');
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateEia(
-        current.id,
-        { currentStep: editStep, completed: editCompleted, steps: editSteps },
-        token,
-      );
-      message.success('已保存');
-      await load();
-      const refreshed = await getEia(current.id, token);
-      setCurrent(refreshed);
-      setEditSteps({ ...emptySteps(), ...refreshed.steps });
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await deleteEia(id, token);
-      message.success('已删除');
-      await load();
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '删除失败');
+      await exportEiaDocx(authToken);
+      message.success('DOCX 已开始导出');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'DOCX 导出失败');
     }
   };
 
   const handleClear = async () => {
+    if (!globalThis.confirm('确认清空当前账号下的全部环评判定记录吗？')) return;
     try {
-      await clearEia(token);
-      message.success('已清空全部记录');
-      setPage(1);
-      await load();
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : '清空失败');
+      await clearEia(authToken);
+      setRecords([]);
+      message.success('已清空记录');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '清空失败');
     }
   };
 
-  const columns: ColumnsType<EiaRecord> = [
-    {
-      dataIndex: 'id',
-      title: 'ID',
-      width: 80,
-      render: (v: number) => v,
-    },
-    {
-      dataIndex: 'summary',
-      title: '环评摘要',
-      ellipsis: true,
-      render: (v: string) => v || '—',
-    },
-    {
-      dataIndex: 'currentStep',
-      title: '当前步骤',
-      width: 120,
-      render: (v: string) => STEP_LABELS[v] || v || '—',
-    },
-    {
-      dataIndex: 'completed',
-      title: '状态',
-      width: 100,
-      render: (v: boolean) =>
-        v ? <Badge status="success" text="已完成" /> : <Badge status="processing" text="进行中" />,
-    },
-    {
-      dataIndex: 'updatedAt',
-      title: '更新时间',
-      width: 180,
-      render: (v: string) => v || '—',
-    },
-    {
-      title: '操作',
-      width: 150,
-      render: (_, row) => (
-        <Space>
-          <Button icon={<EditOutlined />} size="small" type="link" onClick={() => openDetail(row.id)}>
-            查看/编辑
-          </Button>
-          <Popconfirm
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-            okText="删除"
-            onConfirm={() => handleDelete(row.id)}
-            title="确认删除该记录？"
-          >
-            <Button danger icon={<DeleteOutlined />} size="small" type="link" />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const thStyle: CSSProperties = {
+    color: C.slate500,
+    fontSize: 12,
+    fontWeight: 400,
+    letterSpacing: '0.08em',
+    padding: '12px 16px',
+    textAlign: 'left',
+    textTransform: 'uppercase',
+  };
+  const tdStyle: CSSProperties = {
+    borderTop: `1px solid ${C.slate200}`,
+    padding: '12px 16px',
+    verticalAlign: 'top',
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-          <FileText size={22} />
+    <BusinessPageContainer>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          style={{
+            alignItems: 'center',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 16,
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ color: C.slate900, fontSize: 24, fontWeight: 600 }}>AI环评</div>
+            <div style={{ color: C.slate500, fontSize: 14 }}>
+              为建设项目环评审批提供流程化的智能辅助判定能力，支持历史记录检索、过程续办和结论回看。
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <Button icon={<Plus size={16} />} onClick={() => navigate('/approval/eia/new')}>
+              AI环评
+            </Button>
+            <Button icon={<Download size={16} />} onClick={() => void handleExport()}>
+              导出 DOCX
+            </Button>
+            <Button style={roseOutlineBtn} onClick={() => void handleClear()}>
+              清空
+            </Button>
+          </div>
         </div>
-        <div>
-          <Typography.Title className="!mb-0" level={3}>
-            AI 环评
-          </Typography.Title>
-          <Typography.Text type="secondary">环评报告辅助编写与分步生成</Typography.Text>
+
+        <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <Input
+              placeholder="搜索：建设内容 / 状态"
+              prefix={<Search color={C.slate400} size={16} />}
+              style={{ background: C.white, borderColor: C.slate200, borderRadius: 16, height: 44 }}
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+            />
+          </div>
+          <div style={{ color: C.slate500, fontSize: 14 }}>
+            共 <span style={{ color: C.slate900, fontWeight: 600 }}>{records.length}</span> 条
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: C.white,
+            border: `1px solid ${C.slate200}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}>
+            <table
+              style={{ borderCollapse: 'collapse', fontSize: 14, minWidth: '100%', width: '100%' }}
+            >
+              <colgroup>
+                <col style={{ width: 220 }} />
+                <col />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 200 }} />
+              </colgroup>
+              <thead style={{ background: C.slate50, position: 'sticky', top: 0, zIndex: 10 }}>
+                <tr>
+                  <th style={thStyle}>时间</th>
+                  <th style={thStyle}>建设内容</th>
+                  <th style={thStyle}>状态</th>
+                  <th style={thStyle}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      style={{
+                        ...tdStyle,
+                        color: C.slate500,
+                        padding: '40px 16px',
+                        textAlign: 'center',
+                      }}
+                    >
+                      正在加载记录...
+                    </td>
+                  </tr>
+                ) : filteredRecords.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      style={{
+                        ...tdStyle,
+                        color: C.slate500,
+                        padding: '40px 16px',
+                        textAlign: 'center',
+                      }}
+                    >
+                      暂无记录。新增环评判定并生成结果后，会自动沉淀到这里。
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRecords.map((record) => (
+                    <tr key={record.id}>
+                      <td style={{ ...tdStyle, color: C.slate600, whiteSpace: 'nowrap' }}>
+                        {new Date(record.updatedAt).toLocaleString('zh-CN')}
+                      </td>
+                      <td style={{ ...tdStyle, color: C.slate700, maxWidth: 0 }}>
+                        <div
+                          style={{
+                            display: '-webkit-box',
+                            lineHeight: '24px',
+                            overflow: 'hidden',
+                            WebkitBoxOrient: 'vertical',
+                            WebkitLineClamp: 2,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          {record.steps.summary.content || '—'}
+                        </div>
+                      </td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                        <span
+                          style={{
+                            background: record.completed ? C.emerald50 : C.amber50,
+                            borderRadius: 9999,
+                            color: record.completed ? C.emerald700 : C.amber700,
+                            display: 'inline-flex',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            padding: '4px 10px',
+                          }}
+                        >
+                          {record.completed ? '已完成' : '未完成'}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {record.completed ? (
+                            <Button
+                              size="small"
+                              onClick={() => navigate(getAssessmentRecordRoute(record))}
+                            >
+                              查看详情
+                            </Button>
+                          ) : (
+                            <Button
+                              size="small"
+                              style={{ background: C.emerald600 }}
+                              type="primary"
+                              onClick={() => navigate(getAssessmentRecordRoute(record))}
+                            >
+                              继续判定
+                            </Button>
+                          )}
+                          <Button
+                            disabled={deletingRecordId === record.id}
+                            icon={<Trash2 size={14} />}
+                            size="small"
+                            style={roseOutlineBtn}
+                            onClick={() => void handleDeleteRecord(record)}
+                          >
+                            {deletingRecordId === record.id ? '删除中...' : '删除'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <Card bordered={false} className="shadow-sm">
-        <Space className="mb-4" wrap>
-          <Input
-            allowClear
-            onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={() => {
-              setPage(1);
-              setSearchKw(keyword.trim());
-            }}
-            placeholder="搜索环评摘要"
-            prefix={<FileTextOutlined />}
-            style={{ width: 280 }}
-            value={keyword}
-          />
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>
-            刷新
-          </Button>
-          <Button icon={<PlusOutlined />} type="primary" onClick={openCreate}>
-            新建环评
-          </Button>
-          <Popconfirm
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-            okText="清空"
-            onConfirm={handleClear}
-            title="确认清空当前用户全部环评记录？"
-          >
-            <Button danger>清空全部</Button>
-          </Popconfirm>
-        </Space>
-
-        <Table<EiaRecord>
-          columns={columns}
-          dataSource={items}
-          loading={loading}
-          pagination={false}
-          rowKey="id"
-          scroll={{ x: 900 }}
-          size="middle"
-        />
-
-        <div className="mt-4 flex justify-end">
-          <Pagination
-            current={page}
-            disabled={loading}
-            onChange={(nextPage, nextSize) => {
-              if (nextSize !== size) {
-                setSize(nextSize);
-                setPage(1);
-              } else {
-                setPage(nextPage);
-              }
-            }}
-            pageSize={size}
-            pageSizeOptions={[10, 20, 50, 100]}
-            showSizeChanger
-            total={total}
-          />
-        </div>
-      </Card>
-
-      <Modal
-        destroyOnClose
-        onCancel={() => setCreateOpen(false)}
-        onOk={handleCreate}
-        confirmLoading={creating}
-        open={createOpen}
-        title="新建环评记录"
-        width={560}
-      >
-        <div className="mt-3">
-          <Typography.Text type="secondary">填写环评项目摘要，系统将以此初始化分步工作流。</Typography.Text>
-          <Input.TextArea
-            className="mt-2"
-            onChange={(e) => setSummaryInput(e.target.value)}
-            placeholder="例如：关于 XX 公司年产 10 万吨项目环境影响评价的摘要……"
-            rows={5}
-            value={summaryInput}
-          />
-        </div>
-      </Modal>
-
-      <Drawer
-        destroyOnClose
-        onClose={() => setDetailOpen(false)}
-        open={detailOpen}
-        title={current ? `环评记录 #${current.id}` : '环评详情'}
-        width={680}
-      >
-        {detailLoading ? (
-          <Typography.Text type="secondary">加载中…</Typography.Text>
-        ) : current ? (
-          <div className="space-y-4">
-            <Space wrap>
-              <span className="text-sm text-slate-500">当前步骤：</span>
-              <Select
-                onChange={setEditStep}
-                options={STEP_ORDER.map((s) => ({ label: STEP_LABELS[s], value: s }))}
-                style={{ width: 140 }}
-                value={editStep}
-              />
-              <span className="text-sm text-slate-500">完成状态：</span>
-              <Select
-                onChange={(v) => setEditCompleted(v === 'completed')}
-                options={[
-                  { label: '进行中', value: 'running' },
-                  { label: '已完成', value: 'completed' },
-                ]}
-                style={{ width: 120 }}
-                value={editCompleted ? 'completed' : 'running'}
-              />
-            </Space>
-
-            {STEP_ORDER.map((key) => (
-              <div key={key}>
-                <div className="mb-1 text-sm font-medium text-slate-700">
-                  {STEP_LABELS[key]}
-                  {key === 'summary' && <Tag className="ml-2">必填</Tag>}
-                </div>
-                <Input.TextArea
-                  onChange={(e) =>
-                    setEditSteps((prev) => ({
-                      ...prev,
-                      [key]: { ...(prev[key] || {}), content: e.target.value },
-                    }))
-                  }
-                  placeholder={`填写${STEP_LABELS[key]}内容`}
-                  rows={key === 'summary' ? 4 : 3}
-                  value={editSteps[key]?.content || ''}
-                />
-              </div>
-            ))}
-
-            <Space>
-              <Button onClick={handleSave} loading={saving} type="primary">
-                保存
-              </Button>
-              <Button
-                disabled
-                title="AI 分步分析需接入大模型服务，敬请期待"
-                type="default"
-              >
-                AI 智能分析
-              </Button>
-            </Space>
-          </div>
-        ) : null}
-      </Drawer>
-    </div>
+    </BusinessPageContainer>
   );
 });
 
 BusinessEiaPage.displayName = 'BusinessEiaPage';
 
-const BusinessEiaPageWithContainer = memo(() => (
-  <BusinessPageContainer>
-    <BusinessEiaPage />
-  </BusinessPageContainer>
-));
-
-BusinessEiaPageWithContainer.displayName = 'BusinessEiaPageWithContainer';
-
-export default BusinessEiaPageWithContainer;
+export default BusinessEiaPage;

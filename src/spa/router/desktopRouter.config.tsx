@@ -813,6 +813,20 @@ export const sharedMainAreaChildren: RouteObject[] = [
   },
   {
     element: dynamicElement(
+      () => import('@/features/BusinessEiaWizardPage'),
+      'Desktop > Business > Approval > EIA New',
+    ),
+    path: 'approval/eia/new',
+  },
+  {
+    element: dynamicElement(
+      () => import('@/features/BusinessEiaWizardPage'),
+      'Desktop > Business > Approval > EIA Edit',
+    ),
+    path: 'approval/eia/:recordId/edit/:stepId',
+  },
+  {
+    element: dynamicElement(
       () => import('@/features/BusinessAIMapPage'),
       'Desktop > Business > Approval > Map',
     ),
