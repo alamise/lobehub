@@ -77,10 +77,11 @@ interface AgentItemProps {
   className?: string;
   item: SidebarAgentItem;
   onNavigate?: () => void;
+  secondaryLabel?: string | null;
   style?: CSSProperties;
 }
 
-const AgentItem = memo<AgentItemProps>(({ item, style, className, onNavigate }) => {
+const AgentItem = memo<AgentItemProps>(({ item, style, className, onNavigate, secondaryLabel }) => {
   const { id, avatar, backgroundColor, pinned, slug, userId, visibility } = item;
   // Unread count is server-computed (topics.status === 'unread') and carried on
   // the sidebar list item, so it stays accurate across agents whose topics
@@ -103,7 +104,7 @@ const AgentItem = memo<AgentItemProps>(({ item, style, className, onNavigate }) 
   // (Hermes commonly reports "default"), not the runtime users need to identify.
   // Prefer the runtime label; regular agents still show their role beside their name.
   const runtimeTag = getHeterogeneousTypeLabel(item.heterogeneousType);
-  const roleTag = agentSecondaryDisplayName(item, runtimeTag);
+  const roleTag = secondaryLabel || agentSecondaryDisplayName(item, runtimeTag);
 
   const agentUrl = usePreservedAgentUrl(id);
 
