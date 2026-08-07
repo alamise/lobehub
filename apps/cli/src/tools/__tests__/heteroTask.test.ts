@@ -2,16 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTrpcClient } from '../../api/client';
 import { removeTask, saveTask } from '../../daemon/taskRegistry';
-import { runHeteroTask } from '../heteroTask';
+import { cancelHeteroTask, runHeteroTask } from '../heteroTask';
 
 // ─── Mocks ───
 
 const spawnMock = vi.hoisted(() => vi.fn());
 const execFileSyncMock = vi.hoisted(() => vi.fn());
+const cancelHeteroAgentRunMock = vi.hoisted(() => vi.fn());
 
 vi.mock('node:child_process', () => ({
   execFileSync: execFileSyncMock,
   spawn: spawnMock,
+}));
+
+vi.mock('../../device/agentRun', () => ({
+  cancelHeteroAgentRun: cancelHeteroAgentRunMock,
 }));
 
 // task registry — use real implementation backed by a temporary in-memory map
@@ -302,5 +307,15 @@ describe('runHeteroTask (openclaw)', () => {
     for (const call of getTrpcClientMock.mock.calls) {
       expect(call[0]).toBe('ws-99');
     }
+  });
+
+  it('cancels a gateway-dispatched local CLI wrapper before checking platform tasks', async () => {
+    cancelHeteroAgentRunMock.mockReturnValueOnce({ pid: 4242, signal: 'SIGINT' });
+
+    await expect(cancelHeteroTask({ taskId: 'operation-local' })).resolves.toBe(
+      JSON.stringify({ pid: 4242, signal: 'SIGINT', taskId: 'operation-local' }),
+    );
+
+    expect(cancelHeteroAgentRunMock).toHaveBeenCalledWith('operation-local', 'SIGINT');
   });
 });
