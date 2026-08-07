@@ -21,6 +21,7 @@ export const userProfileSelectors = {
   email: (s: UserStore): string => s.user?.email || '',
   fullName: (s: UserStore): string => s.user?.fullName || '',
   interests: (s: UserStore): string[] => s.user?.interests || [],
+  isAdminAccount: (s: UserStore): boolean => ['admin', 'super_admin'].includes(s.user?.role ?? ''),
   nickName,
   userAvatar: (s: UserStore): string => s.user?.avatar || '',
   userId: (s: UserStore) => s.user?.id,

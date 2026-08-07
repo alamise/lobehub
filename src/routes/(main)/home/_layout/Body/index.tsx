@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 
+import { useIsAdminAccount } from '@/business/client/hooks/useIsAdminAccount';
 import {
   type BusinessNavGroup,
   businessNavGroups,
@@ -229,19 +230,24 @@ const BusinessMenuGroup = memo<{ group: BusinessNavGroup }>(({ group }) => {
 
 BusinessMenuGroup.displayName = 'BusinessMenuGroup';
 
-const Body = memo(() => (
-  <nav className={styles.nav}>
-    {businessNavTopItems.map((item) => (
-      <BusinessMenuLeaf item={item} key={item.key} />
-    ))}
-    {businessNavGroups.map((group) => (
-      <BusinessMenuGroup group={group} key={group.key} />
-    ))}
-    {businessNavMiddleItems.map((item) => (
-      <BusinessMenuLeaf item={item} key={item.key} />
-    ))}
-    <BusinessMenuGroup group={businessNavOfficeGroup} />
-  </nav>
-));
+const Body = memo(() => {
+  const isAdmin = useIsAdminAccount();
+  const visibleItems = (item: BusinessNavLeafItem) => !item.adminOnly || isAdmin;
+
+  return (
+    <nav className={styles.nav}>
+      {businessNavTopItems.filter(visibleItems).map((item) => (
+        <BusinessMenuLeaf item={item} key={item.key} />
+      ))}
+      {businessNavGroups.map((group) => (
+        <BusinessMenuGroup group={group} key={group.key} />
+      ))}
+      {businessNavMiddleItems.filter(visibleItems).map((item) => (
+        <BusinessMenuLeaf item={item} key={item.key} />
+      ))}
+      <BusinessMenuGroup group={businessNavOfficeGroup} />
+    </nav>
+  );
+});
 
 export default Body;

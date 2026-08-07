@@ -1,4 +1,5 @@
 export default {
+  'navigation.agentManagement': '智能体管理',
   'navigation.agents': 'Agents',
   'navigation.chat': 'Chat',
   'navigation.discover': 'Discover',

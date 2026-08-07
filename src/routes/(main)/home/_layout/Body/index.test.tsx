@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import Body from './index';
 
+const adminState = vi.hoisted(() => ({ value: false }));
 const navigate = vi.fn();
+
+vi.mock('@/business/client/hooks/useIsAdminAccount', () => ({
+  useIsAdminAccount: () => adminState.value,
+}));
 
 vi.mock('@lobehub/ui', () => ({
   Accordion: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -13,6 +18,7 @@ vi.mock('@lobehub/ui', () => ({
       <div>{children}</div>
     </section>
   ),
+  Center: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Flexbox: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Icon: () => <span />,
   Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
@@ -42,6 +48,7 @@ vi.mock('@/utils/navigation', () => ({
 
 afterEach(() => {
   cleanup();
+  adminState.value = false;
   navigate.mockReset();
 });
 
@@ -49,12 +56,27 @@ describe('Business sidebar body', () => {
   it('renders the business menu tree', () => {
     render(<Body />);
 
-    expect(screen.getByText('AI 数字人')).toBeInTheDocument();
-    expect(screen.getByText('AI 辅助决策')).toBeInTheDocument();
-    expect(screen.getByText('水环境质量分析')).toBeInTheDocument();
-    expect(screen.getByText('AI 辅助执法')).toBeInTheDocument();
-    expect(screen.getByText('AI 环评')).toBeInTheDocument();
-    expect(screen.getByText('AI 辅助监测')).toBeInTheDocument();
-    expect(screen.getByText('AI 辅助办公')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 数字人')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 辅助决策')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 辅助执法')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 辅助审批')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 辅助监测')).toBeInTheDocument();
+    expect(screen.getByTitle('AI 辅助办公')).toBeInTheDocument();
+  });
+
+  it('hides agent management for non-admin accounts', () => {
+    adminState.value = false;
+
+    render(<Body />);
+
+    expect(screen.queryByText('智能体管理')).toBeNull();
+  });
+
+  it('renders agent management for admin accounts', () => {
+    adminState.value = true;
+
+    render(<Body />);
+
+    expect(screen.getByText('智能体管理')).toBeInTheDocument();
   });
 });

@@ -4,5 +4,5 @@ import { routeMeta } from '@/spa/router/routeMeta';
 
 export const agentsRouteMeta = routeMeta({
   icon: BotIcon,
-  titleKey: 'navigation.agents',
+  titleKey: 'navigation.agentManagement',
 });

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export interface BusinessNavLeafItem {
+  adminOnly?: boolean;
   icon?: LucideIcon;
   key: string;
   path: string;
@@ -37,6 +38,13 @@ export const businessNavTopItems: BusinessNavLeafItem[] = [
     key: 'home',
     path: '/',
     title: '首页',
+  },
+  {
+    adminOnly: true,
+    icon: Bot,
+    key: 'agent-management',
+    path: '/agents',
+    title: '智能体管理',
   },
   {
     icon: Bot,
