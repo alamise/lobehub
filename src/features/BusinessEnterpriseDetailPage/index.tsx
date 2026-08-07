@@ -16,9 +16,11 @@ import { Building2, Factory, FolderOpen } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
+import BusinessAgentChatPanel from '@/features/BusinessAgentChatPanel';
 import { type ArchiveCategory, getArchiveCategories } from '@/features/BusinessArchivePage/api';
 import BusinessPageContainer from '@/features/BusinessPageContainer';
 import { useSession } from '@/libs/better-auth/auth-client';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import {
   type EnterpriseArchive,
@@ -758,6 +760,7 @@ const BusinessEnterpriseDetailPage = memo(() => {
   const enterpriseId = Number(id);
 
   const { data: session, isPending } = useSession();
+  const enterpriseAgentId = useServerConfigStore(serverConfigSelectors.businessEnterpriseAgentId);
   const authToken = useMemo(
     () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
@@ -773,7 +776,6 @@ const BusinessEnterpriseDetailPage = memo(() => {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<UpdateEnterpriseRequest | null>(null);
-  const [chatInput, setChatInput] = useState('');
   const [archiveSearchInput, setArchiveSearchInput] = useState(searchParams.get('keyword') || '');
 
   const activeView = searchParams.get('view') === 'category' ? 'category' : 'home';
@@ -1313,47 +1315,14 @@ const BusinessEnterpriseDetailPage = memo(() => {
               当前企业问答
             </div>
             <div className={styles.aiBody}>
-              {archives[0]?.id ? (
-                <>
-                  <Card bordered={false} size="small" title="引导问题">
-                    {guideQuestions.length === 0 ? (
-                      <Empty description="暂无引导问题" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                    ) : (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {guideQuestions.map((question) => (
-                          <Button
-                            key={question}
-                            style={{
-                              height: 'auto',
-                              justifyContent: 'flex-start',
-                              whiteSpace: 'normal',
-                            }}
-                            onClick={() => setChatInput(question)}
-                          >
-                            {question}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  </Card>
-                  <Input.TextArea
-                    autoSize={{ maxRows: 4, minRows: 3 }}
-                    placeholder="请输入关于当前企业的问题"
-                    style={{ marginTop: 14 }}
-                    value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
-                  />
-                  <Button
-                    disabled={!chatInput.trim()}
-                    style={{ marginTop: 10, width: '100%' }}
-                    type="primary"
-                  >
-                    发送
-                  </Button>
-                </>
-              ) : (
-                <Empty description="当前企业暂无可用于问答的档案" />
-              )}
+              <BusinessAgentChatPanel
+                agentId={enterpriseAgentId}
+                contextId={String(enterprise.id)}
+                guideQuestions={guideQuestions}
+                kind="enterprise"
+                placeholder="请输入关于当前企业的问题"
+                title="当前企业问答"
+              />
             </div>
           </aside>
         </div>

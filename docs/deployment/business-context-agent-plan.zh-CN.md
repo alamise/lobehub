@@ -565,9 +565,9 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 |    8 | MCP 参数注入策略                 | 工具执行前强制覆盖业务 ID                           | `ToolExecutionService.executeMCPTool` 合并 / 覆盖 `enterprise_id`、`archive_id`                                                           | 已完成 |
 |    9 | 企业工具白名单                   | 明确哪些 MCP 工具需要强制注入 `enterprise_id`       | 企业类 MCP 工具常量或配置映射                                                                                                             | 已完成 |
 |   10 | 档案工具白名单                   | 明确哪些 MCP 工具需要强制注入 `archive_id`          | 档案类 MCP 工具常量或配置映射                                                                                                             | 已完成 |
-|   11 | 企业详情右侧面板接入             | 企业页加载企业问答助手并传入当前企业 ID             | 企业详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 待开始 |
-|   12 | 档案详情右侧面板接入             | 档案页加载文档问答助手并传入当前档案 ID             | 档案详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 待开始 |
-|   13 | topic 业务归属策略               | 避免不同企业 / 档案复用同一历史上下文               | 档案默认一个档案一个 topic；企业按 `enterpriseId` 展示历史提问记录，并评估清空当前企业记录能力                                            | 待开始 |
+|   11 | 企业详情右侧面板接入             | 企业页加载企业问答助手并传入当前企业 ID             | 企业详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 进行中 |
+|   12 | 档案详情右侧面板接入             | 档案页加载文档问答助手并传入当前档案 ID             | 档案详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 进行中 |
+|   13 | topic 业务归属策略               | 避免不同企业 / 档案复用同一历史上下文               | 档案默认一个档案一个 topic；企业按 `enterpriseId` 展示历史提问记录，并评估清空当前企业记录能力                                            | 进行中 |
 |   14 | 企业访问权限校验                 | 防止越权查询企业数据                                | `execAgent` 创建 operation 前校验当前用户是否可访问 `enterpriseId`                                                                        | 待开始 |
 |   15 | 档案访问权限校验                 | 防止越权查询档案数据                                | `execAgent` 创建 operation 前校验当前用户是否可访问 `archiveId`                                                                           | 待开始 |
 |   16 | MCP 企业工具适配验证             | 确认现有企业 MCP 工具能接受注入后的 `enterprise_id` | `hbai-mcp` 企业工具联调                                                                                                                   | 待开始 |

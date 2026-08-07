@@ -8,7 +8,6 @@ import {
   FileSearchOutlined,
   FileTextOutlined,
   LeftOutlined,
-  MessageOutlined,
   MinusOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -17,12 +16,13 @@ import {
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import { Button, Segmented } from '@lobehub/ui/base-ui';
-import { Empty, Input, message, Spin, Tooltip, Typography } from 'antd';
+import { Empty, message, Spin, Tooltip, Typography } from 'antd';
 import { createStaticStyles, cx } from 'antd-style';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
+import BusinessAgentChatPanel from '@/features/BusinessAgentChatPanel';
 import {
   type AiArchiveItem,
   type ArchiveCategory,
@@ -44,6 +44,7 @@ import {
   listCategories as listKnowledgeCategories,
 } from '@/features/BusinessKnowledgeBasePage/api';
 import { useSession } from '@/libs/better-auth/auth-client';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 const LIST_PATH = '/enforcement/archive';
 const KNOWLEDGE_LIST_PATH = '/office/knowledge-base';
@@ -531,6 +532,7 @@ const BusinessArchiveDetailPage = memo(() => {
   const isKnowledgeSource = searchParams.get('source') === 'knowledge';
 
   const { data: session, isPending } = useSession();
+  const archiveAgentId = useServerConfigStore(serverConfigSelectors.businessArchiveAgentId);
   const authToken = useMemo(
     () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
@@ -549,7 +551,6 @@ const BusinessArchiveDetailPage = memo(() => {
   const [showText, setShowText] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [aiTab, setAiTab] = useState<AiTab>('guide');
-  const [chatInput, setChatInput] = useState('');
 
   const selectedPageNum = Number.parseInt(searchParams.get('pageNum') || '1', 10) || 1;
 
@@ -1115,19 +1116,13 @@ const BusinessArchiveDetailPage = memo(() => {
               className={styles.aiBody}
               style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
             >
-              <div className={styles.chatPlaceholder}>
-                <MessageOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-                <Typography.Text type="secondary">暂无问答记录</Typography.Text>
-              </div>
-              <Input.TextArea
-                autoSize={{ maxRows: 4, minRows: 3 }}
+              <BusinessAgentChatPanel
+                agentId={archiveAgentId}
+                contextId={String(archiveId)}
+                kind="archive"
                 placeholder="请输入关于当前档案的问题"
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
+                title="当前档案问答"
               />
-              <Button disabled={!chatInput.trim()} type="primary">
-                发送
-              </Button>
             </div>
           )}
         </aside>
