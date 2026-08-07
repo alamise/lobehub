@@ -25,6 +25,7 @@ import { heteroAuthedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { signUserJWT } from '@/libs/trpc/utils/internalJwt';
 import { createStreamEventManager } from '@/server/modules/AgentRuntime/factory';
+import { assertCanUseBusinessContext } from '@/server/routers/lambda/_helpers/businessContextGuard';
 import {
   assertCanUseMessageTargets,
   assertCanUseTopicTargets,
@@ -887,6 +888,7 @@ export const aiAgentRouter = router({
         userId: ctx.userId,
         workspaceId: ctx.workspaceId,
       });
+      await assertCanUseBusinessContext(appContext?.businessContext);
       return await ctx.aiAgentService.execAgent({
         agentId,
         appContext,

@@ -568,8 +568,8 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 |   11 | 企业详情右侧面板接入             | 企业页加载企业问答助手并传入当前企业 ID             | 企业详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 进行中 |
 |   12 | 档案详情右侧面板接入             | 档案页加载文档问答助手并传入当前档案 ID             | 档案详情页右侧面板、发送消息参数、topic 作用域                                                                                            | 进行中 |
 |   13 | topic 业务归属策略               | 避免不同企业 / 档案复用同一历史上下文               | 档案默认一个档案一个 topic；企业按 `enterpriseId` 展示历史提问记录，并评估清空当前企业记录能力                                            | 进行中 |
-|   14 | 企业访问权限校验                 | 防止越权查询企业数据                                | `execAgent` 创建 operation 前校验当前用户是否可访问 `enterpriseId`                                                                        | 待开始 |
-|   15 | 档案访问权限校验                 | 防止越权查询档案数据                                | `execAgent` 创建 operation 前校验当前用户是否可访问 `archiveId`                                                                           | 待开始 |
+|   14 | 企业访问权限校验                 | 防止越权查询企业数据                                | `execAgent` 创建 operation 前按现有业务接口口径校验 `enterpriseId` 存在且未删除                                                           | 已完成 |
+|   15 | 档案访问权限校验                 | 防止越权查询档案数据                                | `execAgent` 创建 operation 前按现有业务接口口径校验 `archiveId` 存在、`visible=yes` 且 `scope=ent`                                        | 已完成 |
 |   16 | MCP 企业工具适配验证             | 确认现有企业 MCP 工具能接受注入后的 `enterprise_id` | `hbai-mcp` 企业工具联调                                                                                                                   | 待开始 |
 |   17 | MCP 档案工具能力补齐             | 支持按当前 `archive_id` 限定检索 / 查询             | 新建独立 `document_archive_search`、`document_archive_page_query`，不扩展 `company_archive_search`                                        | 已完成 |
 |   18 | 文档问答助手配置验证             | 管理员创建共享 Agent 并绑定档案工具                 | Agent 配置页面、share 开关、提示词、模型、工具                                                                                            | 待开始 |
@@ -584,6 +584,8 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 - 已通过 `npx vitest run apps/server/src/services/toolExecution/__tests__/index.test.ts`，覆盖 `archive_id` / `enterprise_id` 服务端覆盖逻辑。
 - 已通过 `python -m py_compile hbai_mcp/app.py hbai_mcp/retrieval/archive_page.py`，确认新增 MCP 工具代码语法无误。
 - 已执行 `npm run type-check`，当前失败来自仓库既有类型问题，未指向本轮改动文件；后续全量回归前需另行清理或确认这些既有问题。
+- 第二批已接入企业 / 档案详情右侧最小问答面板，使用 `execAgent` + Agent Runtime stream 获取回答；默认 topic ID 和当前浏览器提问记录暂存 localStorage，后续再接完整会话历史。
+- `execAgent` 已增加业务上下文存在性 / 可见性校验，校验口径与现有业务详情接口一致；当前不是新增用户级业务数据授权模型。
 
 ## 已确认事项
 

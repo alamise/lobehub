@@ -1117,11 +1117,14 @@ const BusinessArchiveDetailPage = memo(() => {
               style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
             >
               <BusinessAgentChatPanel
-                agentId={archiveAgentId}
+                agentId={isKnowledgeSource ? undefined : archiveAgentId}
                 contextId={String(archiveId)}
                 kind="archive"
                 placeholder="请输入关于当前档案的问题"
                 title="当前档案问答"
+                disabledReason={
+                  isKnowledgeSource ? '知识库文档问答暂未接入当前档案助手' : undefined
+                }
               />
             </div>
           )}

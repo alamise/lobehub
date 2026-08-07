@@ -27,6 +27,7 @@ interface ChatRecord {
 interface BusinessAgentChatPanelProps {
   agentId?: string;
   contextId: string;
+  disabledReason?: string;
   guideQuestions?: string[];
   kind: BusinessAgentKind;
   placeholder: string;
@@ -179,7 +180,7 @@ const updateRecord = (
   );
 
 const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
-  ({ agentId, contextId, guideQuestions = [], kind, placeholder, title }) => {
+  ({ agentId, contextId, disabledReason, guideQuestions = [], kind, placeholder, title }) => {
     const [input, setInput] = useState('');
     const [records, setRecords] = useState<ChatRecord[]>([]);
     const [running, setRunning] = useState(false);
@@ -349,7 +350,11 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
           </Button>
         </div>
 
-        {!agentId ? (
+        {disabledReason ? (
+          <div className={styles.empty}>
+            <Empty description={disabledReason} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          </div>
+        ) : !agentId ? (
           <div className={styles.empty}>
             <Empty description="未配置共享 Agent ID" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
