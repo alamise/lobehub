@@ -586,6 +586,7 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 - 已执行 `npm run type-check`，当前失败来自仓库既有类型问题，未指向本轮改动文件；后续全量回归前需另行清理或确认这些既有问题。
 - 第二批已接入企业 / 档案详情右侧最小问答面板，使用 `execAgent` + Agent Runtime stream 获取回答；默认 topic ID 和当前浏览器提问记录暂存 localStorage，后续再接完整会话历史。
 - `execAgent` 已增加业务上下文存在性 / 可见性校验，校验口径与现有业务详情接口一致；当前不是新增用户级业务数据授权模型。
+- 已通过 `npx vitest run apps/server/src/routers/lambda/_helpers/businessContextGuard.test.ts`，覆盖业务上下文存在性 / 可见性 guard。
 
 ## 已确认事项
 
