@@ -7,7 +7,11 @@ import type {
   ToolExecutor,
   ToolSource,
 } from '@lobechat/context-engine';
-import type { ChatTopicBotContext, UserInterventionConfig } from '@lobechat/types';
+import type {
+  BusinessAgentContext,
+  ChatTopicBotContext,
+  UserInterventionConfig,
+} from '@lobechat/types';
 
 import type { ExecutionPlan } from '@/helpers/executionTarget';
 import { type ServerUserMemoryConfig } from '@/server/modules/Mecha/ContextEngineering/types';
@@ -342,6 +346,8 @@ export interface OperationCreationParams {
      * read on the completion path to project receipts.
      */
     agentSignal?: AgentSignalOperationMarker;
+    /** Run-scoped business page context for shared business agents. */
+    businessContext?: BusinessAgentContext;
     /**
      * Client IP of the originating request. Spread onto `state.metadata.clientIp`
      * so downstream LLM-call metadata can carry it for auditing and spend

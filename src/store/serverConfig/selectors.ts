@@ -3,6 +3,9 @@ import { type ServerConfigStore } from './store';
 export const featureFlagsSelectors = (s: ServerConfigStore) => s.featureFlags;
 
 export const serverConfigSelectors = {
+  businessArchiveAgentId: (s: ServerConfigStore) => s.serverConfig.businessAgent?.archiveAgentId,
+  businessEnterpriseAgentId: (s: ServerConfigStore) =>
+    s.serverConfig.businessAgent?.enterpriseAgentId,
   disableEmailPassword: (s: ServerConfigStore) => s.serverConfig.disableEmailPassword || false,
   enableBusinessFeatures: (s: ServerConfigStore) => s.serverConfig.enableBusinessFeatures || false,
   enableEmailVerification: (s: ServerConfigStore) =>

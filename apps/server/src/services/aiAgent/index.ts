@@ -1262,8 +1262,7 @@ export class AiAgentService {
     // Use actual agent ID from config for subsequent operations
     const resolvedAgentId = agentConfig.id;
     let memberDeviceOverride:
-      | Pick<LobeAgentAgencyConfig, 'boundDeviceId' | 'executionTarget'>
-      | undefined;
+      Pick<LobeAgentAgencyConfig, 'boundDeviceId' | 'executionTarget'> | undefined;
     let memberModelOverride: AgentModelOverride | undefined;
     let memberModeOverride: boolean | undefined;
 
@@ -1790,12 +1789,7 @@ export class AiAgentService {
     const heteroProviderType = agentConfig.agencyConfig?.heterogeneousProvider?.type;
     const isHeteroAgent = !!heteroProviderType || isHeterogeneousAgentModelId(model);
     const heteroType = (heteroProviderType ?? model) as
-      | 'amp'
-      | 'claude-code'
-      | 'codex'
-      | 'hermes'
-      | 'openclaw'
-      | 'opencode';
+      'amp' | 'claude-code' | 'codex' | 'hermes' | 'openclaw' | 'opencode';
 
     // ── Shared turn setup (runs for BOTH hetero and normal agents) ──────────
     // Everything up to and including persisting the turn is identical for both
@@ -2477,9 +2471,8 @@ export class AiAgentService {
           // (which eagerly touches server-only ModelRuntime env at module init), so
           // importing it statically would couple that whole subsystem into every
           // `aiAgent` import. Only this cloud-CLI branch needs it.
-          const { spawnHeteroSandbox } = await import(
-            '@/server/services/heterogeneousAgent/sandboxRunner'
-          );
+          const { spawnHeteroSandbox } =
+            await import('@/server/services/heterogeneousAgent/sandboxRunner');
           // The sandbox authenticates its nested `lh` calls with this JWT. The
           // narrow `hetero-operation` token (used for the device-dispatch path
           // above) is rejected by `oidcAuth`, so CC capabilities that hit
@@ -4215,6 +4208,7 @@ export class AiAgentService {
           // runs — lands in state.metadata.agentSignal so the completion path can
           // project receipts/briefs. Undefined for ordinary chat runs.
           ...(appContext?.agentSignal ? { agentSignal: appContext.agentSignal } : {}),
+          businessContext: appContext?.businessContext,
           defaultTaskAssigneeAgentId: appContext?.defaultTaskAssigneeAgentId,
           documentId: appContext?.documentId,
           groupId: appContext?.groupId,
@@ -5280,8 +5274,7 @@ export class AiAgentService {
     if (topicId) {
       const topic = await this.topicModel.findById(topicId);
       const runningOp = (topic?.metadata as any)?.runningOperation as
-        | { deviceId?: string; heteroType?: string; operationId?: string }
-        | undefined;
+        { deviceId?: string; heteroType?: string; operationId?: string } | undefined;
 
       if (
         runningOp?.deviceId &&

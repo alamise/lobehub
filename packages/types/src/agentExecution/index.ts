@@ -50,6 +50,16 @@ export interface AgentSignalOperationMarker {
   triggerMessageId?: string;
 }
 
+export type BusinessAgentContext =
+  | {
+      archiveId: string;
+      kind: 'archive';
+    }
+  | {
+      enterpriseId: string;
+      kind: 'enterprise';
+    };
+
 /**
  * Application context for message storage
  */
@@ -67,6 +77,8 @@ export interface ExecAgentAppContext {
    * Forwarded into the operation so the completion path can project receipts.
    */
   agentSignal?: AgentSignalOperationMarker;
+  /** Run-scoped business page context for shared business agents. */
+  businessContext?: BusinessAgentContext;
   /** Optional default assignee candidate for task manager prompts */
   defaultTaskAssigneeAgentId?: string;
   /** Current document ID for page-scoped conversations */

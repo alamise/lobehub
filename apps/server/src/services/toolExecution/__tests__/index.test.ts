@@ -4,6 +4,64 @@ import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutionService } from '../index';
 
 describe('ToolExecutionService', () => {
+  it('injects archive_id from archive business context for document MCP tools', async () => {
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const service = new ToolExecutionService({
+      builtinToolsExecutor: { execute: vi.fn() } as any,
+      mcpService: { callTool } as any,
+    });
+
+    await service.executeTool(
+      {
+        apiName: 'document_archive_search',
+        arguments: JSON.stringify({ archive_id: 1, query: '验收意见' }),
+        id: 'tool-call-1',
+        identifier: 'hbai-mcp',
+        type: 'mcp',
+      },
+      {
+        businessContext: { archiveId: '123', kind: 'archive' },
+        toolManifestMap: { 'hbai-mcp': { mcpParams: { type: 'http' } } as any },
+      },
+    );
+
+    expect(callTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        argsStr: JSON.stringify({ archive_id: 123, query: '验收意见' }),
+        toolName: 'document_archive_search',
+      }),
+    );
+  });
+
+  it('injects enterprise_id from enterprise business context for enterprise MCP tools', async () => {
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const service = new ToolExecutionService({
+      builtinToolsExecutor: { execute: vi.fn() } as any,
+      mcpService: { callTool } as any,
+    });
+
+    await service.executeTool(
+      {
+        apiName: 'enterprise_basic_info_query',
+        arguments: JSON.stringify({ enterprise_id: 1 }),
+        id: 'tool-call-1',
+        identifier: 'hbai-mcp',
+        type: 'mcp',
+      },
+      {
+        businessContext: { enterpriseId: '456', kind: 'enterprise' },
+        toolManifestMap: { 'hbai-mcp': { mcpParams: { type: 'http' } } as any },
+      },
+    );
+
+    expect(callTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        argsStr: JSON.stringify({ enterprise_id: 456 }),
+        toolName: 'enterprise_basic_info_query',
+      }),
+    );
+  });
+
   it('can skip low-level result truncation for AgentRuntime archival', async () => {
     const builtinToolsExecutor = {
       execute: vi.fn().mockResolvedValue({

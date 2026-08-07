@@ -187,6 +187,17 @@ const StartExecutionSchema = z.object({
   priority: z.enum(['high', 'normal', 'low']).optional().default('normal'),
 });
 
+const BusinessContextSchema = z.discriminatedUnion('kind', [
+  z.object({
+    archiveId: z.string().min(1),
+    kind: z.literal('archive'),
+  }),
+  z.object({
+    enterpriseId: z.string().min(1),
+    kind: z.literal('enterprise'),
+  }),
+]);
+
 /**
  * Schema for execAgent - execute a single Agent
  */
@@ -197,6 +208,7 @@ const ExecAgentSchema = z
     /** Application context for message storage */
     appContext: z
       .object({
+        businessContext: BusinessContextSchema.optional(),
         defaultTaskAssigneeAgentId: z.string().optional(),
         documentId: z.string().nullish(),
         /** The agent being edited when scope is 'agent_builder' (not the builder builtin itself). */

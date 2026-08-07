@@ -27,6 +27,29 @@ import {
 
 const log = debug('lobe-server:tool-execution-service');
 
+const ARCHIVE_CONTEXT_TOOL_NAMES = new Set([
+  'document_archive_search',
+  'document_archive_page_query',
+]);
+
+const ENTERPRISE_CONTEXT_TOOL_NAMES = new Set([
+  'company_archive_search',
+  'enterprise_acceptance_pollution_query',
+  'enterprise_actual_element_query',
+  'enterprise_basic_info_query',
+  'enterprise_enforcement_keypoints',
+  'enterprise_monitoring_data_query',
+  'enterprise_permit_pollution_query',
+  'enterprise_petition_query',
+  'enterprise_supervise_query',
+  'material_enterprise_query',
+  'query_hazardous_waste_data',
+  'search_case',
+  'search_company_archive',
+  'search_enterprise_eia_elements',
+  'search_enterprise_penalty',
+]);
+
 interface ToolExecutionServiceDeps {
   builtinToolsExecutor: BuiltinToolsExecutor;
   mcpService: MCPService;
@@ -61,6 +84,84 @@ const normalizeExecutionError = (error: unknown, fallbackMessage: string) => {
   }
 
   return { code: normalized.code, kind: normalized.kind, message };
+};
+
+const normalizeToolArgs = (args: unknown): Record<string, unknown> => {
+  const parsed = typeof args === 'string' ? safeParseJSON(args) : args;
+
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? { ...(parsed as Record<string, unknown>) }
+    : {};
+};
+
+const toNumericIdIfPossible = (value: string) => {
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : value;
+};
+
+const injectBusinessContextArgs = (
+  payload: ChatToolPayload,
+  context: ToolExecutionContext,
+): { error?: ToolExecutionResult; payload: ChatToolPayload } => {
+  const { apiName } = payload;
+  const businessContext = context.businessContext;
+
+  if (!businessContext) return { payload };
+
+  if (ARCHIVE_CONTEXT_TOOL_NAMES.has(apiName)) {
+    if (businessContext.kind !== 'archive') {
+      return {
+        error: {
+          content: `Tool ${apiName} requires archive business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_MISMATCH',
+            message: `Tool ${apiName} requires archive business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
+
+    return {
+      payload: {
+        ...payload,
+        arguments: JSON.stringify({
+          ...normalizeToolArgs(payload.arguments),
+          archive_id: toNumericIdIfPossible(businessContext.archiveId),
+        }),
+      },
+    };
+  }
+
+  if (ENTERPRISE_CONTEXT_TOOL_NAMES.has(apiName)) {
+    if (businessContext.kind !== 'enterprise') {
+      return {
+        error: {
+          content: `Tool ${apiName} requires enterprise business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_MISMATCH',
+            message: `Tool ${apiName} requires enterprise business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
+
+    return {
+      payload: {
+        ...payload,
+        arguments: JSON.stringify({
+          ...normalizeToolArgs(payload.arguments),
+          enterprise_id: toNumericIdIfPossible(businessContext.enterpriseId),
+        }),
+      },
+    };
+  }
+
+  return { payload };
 };
 
 export class ToolExecutionService {
@@ -175,7 +276,11 @@ export class ToolExecutionService {
     payload: ChatToolPayload,
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
-    const { identifier, apiName, arguments: args } = payload;
+    const injectedPayload = injectBusinessContextArgs(payload, context);
+    if (injectedPayload.error) return injectedPayload.error;
+
+    const effectivePayload = injectedPayload.payload;
+    const { identifier, apiName, arguments: args } = effectivePayload;
 
     log('Executing MCP tool: %s:%s', identifier, apiName);
 
@@ -217,7 +322,7 @@ export class ToolExecutionService {
     try {
       // Check if this is a cloud MCP endpoint
       if (mcpParams.type === 'cloud') {
-        return await this.executeCloudMCPTool(payload, context, mcpParams);
+        return await this.executeCloudMCPTool(effectivePayload, context, mcpParams);
       }
 
       // Stdio MCP can't run on the cloud server — the binary lives on the
@@ -231,7 +336,7 @@ export class ToolExecutionService {
         context.activeDeviceId &&
         context.userId
       ) {
-        return await this.executeMcpViaDevice(payload, context, mcpParams);
+        return await this.executeMcpViaDevice(effectivePayload, context, mcpParams);
       }
 
       // For stdio (in-process) / http/sse types, use standard MCP service

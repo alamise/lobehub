@@ -1,6 +1,7 @@
 import { type LobeToolManifest } from '@lobechat/context-engine';
 import { type LobeChatDatabase } from '@lobechat/database';
 import {
+  type BusinessAgentContext,
   type ChatToolPayload,
   type ClientSecretPayload,
   type ExecSubAgentParams,
@@ -171,6 +172,8 @@ export interface ToolExecutionContext {
    * `messageId`.
    */
   assistantMessageId?: string;
+  /** Run-scoped business page context for shared business agents. */
+  businessContext?: BusinessAgentContext;
   /** Originating request IP propagated through the operation metadata. */
   clientIp?: string;
   /**

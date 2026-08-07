@@ -82,6 +82,11 @@ export interface ServerModelProviderConfig {
 
 export type ServerLanguageModel = Partial<Record<GlobalLLMProviderKey, ServerModelProviderConfig>>;
 
+export interface GlobalBusinessAgentConfig {
+  archiveAgentId?: string;
+  enterpriseAgentId?: string;
+}
+
 export interface GlobalServerConfig {
   /**
    * Agent Gateway URL for WebSocket-based agent execution.
@@ -90,6 +95,7 @@ export interface GlobalServerConfig {
    */
   agentGatewayUrl?: string;
   aiProvider: ServerLanguageModel;
+  businessAgent?: GlobalBusinessAgentConfig;
   defaultAgent?: PartialDeep<UserDefaultAgent>;
   disableEmailPassword?: boolean;
   enableBusinessFeatures?: boolean;
