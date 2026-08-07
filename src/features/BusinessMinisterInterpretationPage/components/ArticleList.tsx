@@ -1,7 +1,12 @@
 'use client';
 
-import { Button, Card, Empty, Typography, message } from 'antd';
-import { BankOutlined, ClockCircleOutlined, ExportOutlined, FileTextOutlined } from '@ant-design/icons';
+import {
+  BankOutlined,
+  ClockCircleOutlined,
+  ExportOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
+import { Card, Empty, Typography } from 'antd';
 import { memo } from 'react';
 
 import type { ArticleItem } from '../api';
@@ -13,29 +18,30 @@ interface ArticleListProps {
 }
 
 const preview = (content: string, max = 140) => {
-  const text = content.replace(/\s+/g, ' ').trim();
+  const text = content.replaceAll(/\s+/g, ' ').trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
 const ArticleList = memo<ArticleListProps>(({ articles, loading, onDetail }) => {
   if (!loading && articles.length === 0) {
-    return <Empty description="暂无解读文章" className="py-12" />;
+    return <Empty className="py-12" description="暂无解读文章" />;
   }
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {articles.map((article) => (
-        <Card key={article.id} bordered={false} className="shadow-sm" hoverable>
+        <Card
+          bordered={false}
+          className="cursor-pointer rounded-xl shadow-sm"
+          key={article.id}
+          onClick={() => onDetail?.(article.id)}
+        >
           <div className="flex h-full flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
                 <FileTextOutlined style={{ fontSize: 18 }} />
               </div>
-              <Typography.Title
-                className="!mb-0 !mt-0 cursor-pointer hover:text-sky-600"
-                level={5}
-                onClick={() => onDetail?.(article.id)}
-              >
+              <Typography.Title className="!mb-0 !mt-0" level={5}>
                 {article.title || '（无标题）'}
               </Typography.Title>
             </div>
@@ -62,10 +68,10 @@ const ArticleList = memo<ArticleListProps>(({ articles, loading, onDetail }) => 
             <div className="flex items-center justify-between border-t border-slate-100 pt-3">
               {article.source_url ? (
                 <a
-                  href={article.source_url}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-sky-600 hover:underline"
+                  href={article.source_url}
+                  rel="noreferrer"
+                  target="_blank"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <ExportOutlined />
@@ -74,9 +80,15 @@ const ArticleList = memo<ArticleListProps>(({ articles, loading, onDetail }) => 
               ) : (
                 <span />
               )}
-              <Button size="small" type="link" onClick={() => onDetail?.(article.id)}>
+              <Typography.Link
+                className="text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDetail?.(article.id);
+                }}
+              >
                 查看详情
-              </Button>
+              </Typography.Link>
             </div>
           </div>
         </Card>
