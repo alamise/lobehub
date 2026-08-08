@@ -15,6 +15,7 @@ import { agentSignalFeedbackIntentRuntime } from './agentSignalFeedbackIntent';
 import { agentSignalReflectionRuntime } from './agentSignalReflection';
 import { agentSignalReviewRuntime } from './agentSignalReview';
 import { agentSignalSkillManagementRuntime } from './agentSignalSkillManagement';
+import { archiveRuntime } from './archive';
 import { briefRuntime } from './brief';
 import { browserRuntime } from './browser';
 import { calculatorRuntime } from './calculator';
@@ -93,6 +94,7 @@ registerRuntimes([
   pageAgentRuntime,
   verifyResultRuntime,
   lobeDeliveryCheckerRuntime,
+  archiveRuntime,
 ]);
 
 // ==================== Registry API ====================

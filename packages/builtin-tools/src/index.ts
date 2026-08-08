@@ -8,6 +8,7 @@ import {
   agentSignalReviewManifest,
   agentSignalSkillManagementManifest,
 } from '@lobechat/builtin-tool-agent-signal';
+import { ArchiveManifest } from '@lobechat/builtin-tool-archive';
 import { BriefManifest } from '@lobechat/builtin-tool-brief';
 import { BrowserManifest } from '@lobechat/builtin-tool-browser';
 import { CalculatorManifest } from '@lobechat/builtin-tool-calculator';
@@ -382,6 +383,11 @@ const builtinToolRegistry: LobeBuiltinTool[] = [
   {
     identifier: LobeDeliveryCheckerManifest.identifier,
     manifest: LobeDeliveryCheckerManifest,
+    type: 'builtin',
+  },
+  {
+    identifier: ArchiveManifest.identifier,
+    manifest: ArchiveManifest,
     type: 'builtin',
   },
 ];

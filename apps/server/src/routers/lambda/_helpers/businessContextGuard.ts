@@ -46,7 +46,7 @@ const getLegacyPool = () => {
   return legacyPool;
 };
 
-const withLegacyClient = async <T>(fn: (client: PoolClient) => Promise<T>) => {
+export const withLegacyClient = async <T>(fn: (client: PoolClient) => Promise<T>) => {
   const client = await getLegacyPool().connect();
   try {
     return await fn(client);

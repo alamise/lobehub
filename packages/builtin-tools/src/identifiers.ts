@@ -8,6 +8,7 @@ import {
   agentSignalReviewManifest,
   agentSignalSkillManagementManifest,
 } from '@lobechat/builtin-tool-agent-signal';
+import { ArchiveIdentifier } from '@lobechat/builtin-tool-archive';
 import { BrowserManifest } from '@lobechat/builtin-tool-browser';
 import { CalculatorManifest } from '@lobechat/builtin-tool-calculator';
 import { CloudSandboxManifest } from '@lobechat/builtin-tool-cloud-sandbox';
@@ -35,6 +36,7 @@ export const builtinToolIdentifiers: string[] = [
   AgentBuilderManifest.identifier,
   AgentDocumentsManifest.identifier,
   AgentManagementManifest.identifier,
+  ArchiveIdentifier,
   CalculatorManifest.identifier,
   CloudSandboxManifest.identifier,
   CredsManifest.identifier,
