@@ -4,6 +4,8 @@ export const featureFlagsSelectors = (s: ServerConfigStore) => s.featureFlags;
 
 export const serverConfigSelectors = {
   businessArchiveAgentId: (s: ServerConfigStore) => s.serverConfig.businessAgent?.archiveAgentId,
+  businessDocFormatAgentId: (s: ServerConfigStore) =>
+    s.serverConfig.businessAgent?.docFormatAgentId,
   businessEnterpriseAgentId: (s: ServerConfigStore) =>
     s.serverConfig.businessAgent?.enterpriseAgentId,
   disableEmailPassword: (s: ServerConfigStore) => s.serverConfig.disableEmailPassword || false,

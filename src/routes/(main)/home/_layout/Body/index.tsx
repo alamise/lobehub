@@ -17,6 +17,7 @@ import {
   SHARED_AGENT_PATH,
 } from '@/features/BusinessNavigation/config';
 import { useWorkspaceAwareNavigate } from '@/features/Workspace/useWorkspaceAwareNavigate';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 const styles = createStaticStyles(({ css }) => ({
   childItem: css`
@@ -121,7 +122,8 @@ const normalizePathname = (pathname: string) => {
   return withoutTrailingSlash || '/';
 };
 
-const isActivePath = (pathname: string, targetPath: string) => {
+const isActivePath = (pathname: string, targetPath?: string) => {
+  if (!targetPath) return false;
   const current = normalizePathname(pathname);
 
   if (targetPath === '/') return current === '/';
@@ -145,7 +147,7 @@ const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
           data-active={active}
           title={item.title}
           type="button"
-          onClick={() => navigate(item.path)}
+          onClick={item.path ? () => navigate(item.path) : undefined}
         >
           {item.title}
         </button>
@@ -160,7 +162,7 @@ const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
         data-active={active}
         title={item.title}
         type="button"
-        onClick={() => navigate(item.path)}
+        onClick={item.path ? () => navigate(item.path) : undefined}
       >
         <Flexbox horizontal align="center" gap={12} style={{ minWidth: 0 }}>
           {ItemIcon && (
@@ -232,7 +234,22 @@ BusinessMenuGroup.displayName = 'BusinessMenuGroup';
 
 const Body = memo(() => {
   const isAdmin = useIsAdminAccount();
+  const docFormatAgentId = useServerConfigStore(serverConfigSelectors.businessDocFormatAgentId);
   const visibleItems = (item: BusinessNavLeafItem) => !item.adminOnly || isAdmin;
+
+  // 公文格式调整菜单项跳转路由取自业务智能体配置（businessAgent.docFormatAgentId），
+  // 复用现有智能体配置读取方案，不再在代码中写死路径。
+  const officeGroup = useMemo<BusinessNavGroup>(() => {
+    if (!docFormatAgentId) return businessNavOfficeGroup;
+
+    const docFormatPath = `/agent/${docFormatAgentId}`;
+    return {
+      ...businessNavOfficeGroup,
+      items: businessNavOfficeGroup.items.map((item) =>
+        item.key === 'office-document-format' ? { ...item, path: docFormatPath } : item,
+      ),
+    };
+  }, [docFormatAgentId]);
 
   return (
     <nav className={styles.nav}>
@@ -245,7 +262,7 @@ const Body = memo(() => {
       {businessNavMiddleItems.filter(visibleItems).map((item) => (
         <BusinessMenuLeaf item={item} key={item.key} />
       ))}
-      <BusinessMenuGroup group={businessNavOfficeGroup} />
+      <BusinessMenuGroup group={officeGroup} />
     </nav>
   );
 });

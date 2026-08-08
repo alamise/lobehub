@@ -84,6 +84,7 @@ export type ServerLanguageModel = Partial<Record<GlobalLLMProviderKey, ServerMod
 
 export interface GlobalBusinessAgentConfig {
   archiveAgentId?: string;
+  docFormatAgentId?: string;
   enterpriseAgentId?: string;
 }
 

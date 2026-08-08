@@ -19,7 +19,7 @@ export interface BusinessNavLeafItem {
   adminOnly?: boolean;
   icon?: LucideIcon;
   key: string;
-  path: string;
+  path?: string;
   title: string;
 }
 
@@ -159,7 +159,6 @@ export const businessNavOfficeGroup: BusinessNavGroup = {
     {
       icon: FilePenLine,
       key: 'office-document-format',
-      path: '/page',
       title: '公文格式调整',
     },
   ],
