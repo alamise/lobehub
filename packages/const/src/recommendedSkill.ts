@@ -17,6 +17,7 @@ export const RECOMMENDED_SKILLS: RecommendedSkillItem[] = [
   { id: 'lobe-task', type: RecommendedSkillType.Builtin },
   { id: 'lobe-agent-documents', type: RecommendedSkillType.Builtin },
   { id: 'lobe-message', type: RecommendedSkillType.Builtin },
+  { id: 'business-archive-info', type: RecommendedSkillType.Builtin },
   // LobeHub skills
   { id: 'notion', type: RecommendedSkillType.Lobehub },
   { id: 'posthog', type: RecommendedSkillType.Lobehub },
