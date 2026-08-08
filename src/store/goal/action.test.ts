@@ -32,6 +32,29 @@ describe('GoalAction', () => {
     expect(useGoalStore.getState().goalListInitializedAgentIds).toContain('agent-1');
   });
 
+  it('uses the complete goal workspace with a project-scoped query and cache', () => {
+    useGoalStore.getState().useFetchGoals(undefined, 'project-1');
+    const [key, fetcher, options] = vi.mocked(useClientDataSWR).mock.calls[0];
+
+    expect(key).toEqual(['task:sidebarGroups', 'project:project-1:goals-page']);
+    expect(fetcher).toBeTypeOf('function');
+    void (fetcher as () => unknown)();
+    expect(taskService.groupList).toHaveBeenCalledWith(
+      expect.objectContaining({ hasGoal: true, projectId: 'project-1' }),
+    );
+
+    const onSuccess = (
+      options as {
+        onSuccess: (value: { data: Array<{ tasks: Array<{ id: string }> }> }) => void;
+      }
+    ).onSuccess;
+    onSuccess({ data: [{ tasks: [{ id: 'project-goal-1' }] }] });
+
+    expect(useGoalStore.getState().goalListByAgentId['project:project-1']).toEqual([
+      { id: 'project-goal-1' },
+    ]);
+  });
+
   it('refreshes only the requested agent goal cache', async () => {
     await useGoalStore.getState().refreshGoals('agent-1');
 

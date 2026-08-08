@@ -52,8 +52,8 @@ export class GoalActionImpl {
     );
   };
 
-  refreshGoals = async (agentId: string): Promise<void> => {
-    await mutate(taskKeys.sidebarGroups(`${agentId}:goals-page`));
+  refreshGoals = async (scopeId: string): Promise<void> => {
+    await mutate(taskKeys.sidebarGroups(`${scopeId}:goals-page`));
   };
 
   setGoalListFilter = (filter: GoalListFilter): void => {
@@ -64,15 +64,18 @@ export class GoalActionImpl {
     this.#set({ goalViewMode: mode }, false, 'setGoalViewMode');
   };
 
-  useFetchGoals = (agentId?: string) =>
-    useClientDataSWR(
-      agentId ? taskKeys.sidebarGroups(`${agentId}:goals-page`) : null,
+  useFetchGoals = (agentId?: string, projectId?: string) => {
+    const scopeId = projectId ? `project:${projectId}` : agentId;
+
+    return useClientDataSWR(
+      scopeId ? taskKeys.sidebarGroups(`${scopeId}:goals-page`) : null,
       () =>
         taskService.groupList({
           assigneeAgentId: agentId,
           groups: [{ key: 'goals', limit: 100, statuses: GOAL_STATUSES }],
           hasGoal: true,
           parentTaskId: null,
+          projectId,
         }),
       {
         onSuccess: ({ data }) => {
@@ -80,11 +83,11 @@ export class GoalActionImpl {
             ({ goalListByAgentId, goalListInitializedAgentIds }) => ({
               goalListByAgentId: {
                 ...goalListByAgentId,
-                [agentId!]: data[0]?.tasks ?? [],
+                [scopeId!]: data[0]?.tasks ?? [],
               },
-              goalListInitializedAgentIds: goalListInitializedAgentIds.includes(agentId!)
+              goalListInitializedAgentIds: goalListInitializedAgentIds.includes(scopeId!)
                 ? goalListInitializedAgentIds
-                : [...goalListInitializedAgentIds, agentId!],
+                : [...goalListInitializedAgentIds, scopeId!],
             }),
             false,
             'useFetchGoals/success',
@@ -93,6 +96,7 @@ export class GoalActionImpl {
         revalidateOnFocus: true,
       },
     );
+  };
 }
 
 export type GoalAction = Pick<GoalActionImpl, keyof GoalActionImpl>;
