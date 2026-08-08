@@ -22,7 +22,6 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
-import BusinessAgentChatPanel from '@/features/BusinessAgentChatPanel';
 import {
   type AiArchiveItem,
   type ArchiveCategory,
@@ -43,6 +42,7 @@ import {
   getKnowledgePages,
   listCategories as listKnowledgeCategories,
 } from '@/features/BusinessKnowledgeBasePage/api';
+import BusinessNativeChatPanel from '@/features/BusinessNativeChatPanel';
 import { useSession } from '@/libs/better-auth/auth-client';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
@@ -327,8 +327,8 @@ const styles = createStaticStyles(({ css }) => ({
     display: flex;
     flex-direction: column;
 
-    width: 384px;
-    min-width: 384px;
+    width: 480px;
+    min-width: 480px;
     min-height: 0;
     border-inline-start: 1px solid #e2e8f0;
 
@@ -1173,11 +1173,11 @@ const BusinessArchiveDetailPage = memo(() => {
               className={styles.aiBody}
               style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
             >
-              <BusinessAgentChatPanel
+              <BusinessNativeChatPanel
                 agentId={isKnowledgeSource ? undefined : archiveAgentId}
                 contextId={String(archiveId)}
+                emptyText="请输入关于当前档案的问题"
                 kind="archive"
-                placeholder="请输入关于当前档案的问题"
                 title="当前档案问答"
                 disabledReason={
                   isKnowledgeSource ? '知识库文档问答暂未接入当前档案助手' : undefined

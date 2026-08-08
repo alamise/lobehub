@@ -501,6 +501,11 @@ export class GatewayActionImpl {
         agentId: context.agentId,
         appContext: {
           agentDocumentId: context.agentDocumentId,
+          // Business page scoping (archive / enterprise detail panels). The
+          // server reads this off the operation metadata and injects the
+          // archive_id / enterprise_id filter into business tool calls, so the
+          // shared business agent only searches the record the user is viewing.
+          businessContext: context.businessContext,
           defaultTaskAssigneeAgentId: context.defaultTaskAssigneeAgentId,
           documentId: context.documentId,
           // When AgentBuilder runs, context.agentId is the builtin builder agent.

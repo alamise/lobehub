@@ -7,8 +7,8 @@ import { Building2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
-import BusinessAgentChatPanel from '@/features/BusinessAgentChatPanel';
 import { type ArchiveCategory, getArchiveCategories } from '@/features/BusinessArchivePage/api';
+import BusinessNativeChatPanel from '@/features/BusinessNativeChatPanel';
 import BusinessPageContainer from '@/features/BusinessPageContainer';
 import { useSession } from '@/libs/better-auth/auth-client';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
@@ -324,12 +324,12 @@ const BusinessEnterpriseDetailPage = memo(() => {
                       当前企业问答
                     </div>
                     <div className={styles.chatShellBody}>
-                      <BusinessAgentChatPanel
+                      <BusinessNativeChatPanel
                         agentId={enterpriseAgentId}
                         contextId={String(enterprise.id)}
+                        emptyText="请输入关于当前企业的问题"
                         guideQuestions={guideQuestions}
                         kind="enterprise"
-                        placeholder="请输入关于当前企业的问题"
                         title="当前企业问答"
                       />
                     </div>

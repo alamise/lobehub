@@ -1,3 +1,4 @@
+import type { BusinessAgentContext } from './agentExecution';
 import type { IThreadType } from './topic/thread';
 
 /**
@@ -128,6 +129,16 @@ export interface ConversationContext {
    */
   agentDocumentId?: string;
   agentId: string;
+  /**
+   * Business page context for shared business agents (archive / enterprise
+   * detail pages). Forwarded verbatim into `appContext.businessContext` by the
+   * gateway transport so server-side tool execution can scope RAG/search calls
+   * to the exact archive or enterprise the user is currently viewing.
+   *
+   * Without this the shared business agent would search across every archive
+   * instead of the one open in the left preview pane.
+   */
+  businessContext?: BusinessAgentContext;
   /**
    * Optional default assignee candidate for task manager conversations.
    * This is a prompt hint only; task tools still require an explicit assigneeAgentId.
