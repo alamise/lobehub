@@ -19,7 +19,7 @@ import {
 
 export { isCurrentArchiveReferenceHref } from './utils';
 
-const styles = createStaticStyles(({ css, token }) => ({
+const styles = createStaticStyles(({ css, cssVar }) => ({
   root: css`
     overflow: hidden;
     display: flex;
@@ -39,21 +39,21 @@ const styles = createStaticStyles(({ css, token }) => ({
 
     padding-block: 6px;
     padding-inline: 12px;
-    border-block-end: 1px solid ${token.colorBorderSecondary};
+    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
 
     font-size: 12px;
     line-height: 1.4;
-    color: ${token.colorTextSecondary};
+    color: ${cssVar.colorTextSecondary};
 
-    background: ${token.colorFillQuaternary};
+    background: ${cssVar.colorFillQuaternary};
   `,
   debugLabel: css`
     font-weight: 600;
-    color: ${token.colorText};
+    color: ${cssVar.colorText};
   `,
   debugValue: css`
     font-variant-numeric: tabular-nums;
-    color: ${token.colorText};
+    color: ${cssVar.colorText};
   `,
 }));
 
