@@ -1175,6 +1175,7 @@ const BusinessArchiveDetailPage = memo(() => {
             >
               <BusinessNativeChatPanel
                 agentId={isKnowledgeSource ? undefined : archiveAgentId}
+                archiveTitle={archive?.title}
                 contextId={String(archiveId)}
                 emptyText="请输入关于当前档案的问题"
                 kind="archive"
