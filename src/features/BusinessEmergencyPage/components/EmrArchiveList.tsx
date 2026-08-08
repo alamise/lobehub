@@ -1,13 +1,16 @@
-import { Button, Card, Empty, Input, Pagination, Space, Spin, Tag, Typography, message } from 'antd';
 import { FileTextOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button } from '@lobehub/ui/base-ui';
+import { Card, Empty, Input, message, Pagination, Space, Spin, Tag, Typography } from 'antd';
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { useUrlPage } from '@/hooks/useUrlPage';
 
-import { getEmrArchives, type EmrArchiveItem } from '../api';
+import { type EmrArchiveItem, getEmrArchives } from '../api';
 import { PAGE_SIZE } from '../constants';
 
 const EmrArchiveList = memo(() => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useUrlPage('archive_page');
@@ -39,18 +42,18 @@ const EmrArchiveList = memo(() => {
       <Space wrap>
         <Input
           allowClear
+          placeholder="智能搜索应急档案 / 预案"
+          prefix={<SearchOutlined />}
+          style={{ width: 320 }}
+          value={search}
           onChange={(e) => setSearch(e.target.value)}
           onPressEnter={() => {
             setPage(1);
             setKeyword(search.trim());
           }}
-          placeholder="智能搜索应急档案 / 预案"
-          prefix={<SearchOutlined />}
-          style={{ width: 320 }}
-          value={search}
         />
         <Typography.Text type="secondary">共 {total} 条</Typography.Text>
-        <Button icon={<ReloadOutlined />} loading={loading} onClick={load} type="text" />
+        <Button icon={<ReloadOutlined />} loading={loading} type="text" onClick={load} />
       </Space>
 
       <Spin spinning={loading}>
@@ -59,13 +62,21 @@ const EmrArchiveList = memo(() => {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {items.map((item) => (
-              <Card key={item.id} bordered={false} className="shadow-sm" hoverable size="small">
+              <Card
+                hoverable
+                bordered={false}
+                className="shadow-sm"
+                key={item.id}
+                size="small"
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/enforcement/archive/${item.id}`)}
+              >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
                     <FileTextOutlined style={{ fontSize: 18 }} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <Typography.Text strong ellipsis style={{ fontSize: 14 }}>
+                    <Typography.Text ellipsis strong style={{ fontSize: 14 }}>
                       {item.title || '未命名档案'}
                     </Typography.Text>
                     <div className="mt-1 flex flex-wrap gap-1">
@@ -91,10 +102,10 @@ const EmrArchiveList = memo(() => {
         <Pagination
           current={page}
           disabled={loading}
-          onChange={(p) => setPage(p)}
           pageSize={PAGE_SIZE}
           showSizeChanger={false}
           total={total}
+          onChange={(p) => setPage(p)}
         />
       </div>
     </div>

@@ -15,6 +15,11 @@ import {
 const AiArchiveRoutes = new Hono();
 
 const ARCHIVE_SCOPE = 'ent';
+const EMR_SCOPE = 'emr';
+// 应急档案与 AI 档案同表（file_archive），仅 scope 不同。放开详情/分页/图片接口的
+// scope 过滤以同时命中 'ent' 与 'emr'，使未改动的 AI 档案详情页可按 id 复用打开应急档案。
+// 注意：列表接口（GET /）仍仅限 ARCHIVE_SCOPE，应急档案不会混入 AI 档案列表。
+const ARCHIVE_SCOPE_VALUES = [ARCHIVE_SCOPE, EMR_SCOPE];
 const DEFAULT_PAGE = 1;
 const ARCHIVE_OSS_PUBLIC_ENDPOINT =
   process.env.ARCHIVE_OSS_PUBLIC_ENDPOINT ||
@@ -276,8 +281,11 @@ AiArchiveRoutes.get('/:id', async (c) => {
 
   const archive = await withClient(async (client) => {
     const result = await client.query<ArchiveRow>(
-      `SELECT ${selectColumns} ${fromClause} AND fa.id = $3`,
-      ['yes', ARCHIVE_SCOPE, id],
+      `SELECT ${selectColumns}
+       FROM file_archive fa
+       LEFT JOIN archive_category ac ON fa.category_code = ac.code
+       WHERE fa.visible = $1 AND fa.scope = ANY($2::text[]) AND fa.id = $3`,
+      ['yes', ARCHIVE_SCOPE_VALUES, id],
     );
     return result.rows[0] ? mapArchive(result.rows[0]) : undefined;
   });
@@ -307,9 +315,9 @@ const getArchivePageOssPath = async (archiveId: number, pageNum: number) =>
        WHERE api.archive_id = $1
          AND api.page_num = $2
          AND fa.visible = $3
-         AND fa.scope = $4
+         AND fa.scope = ANY($4::text[])
        LIMIT 1`,
-      [archiveId, pageNum, 'yes', ARCHIVE_SCOPE],
+      [archiveId, pageNum, 'yes', ARCHIVE_SCOPE_VALUES],
     );
     return result.rows[0]?.oss_path || '';
   });
@@ -359,8 +367,8 @@ AiArchiveRoutes.get('/:id/pages', async (c) => {
 
   const data = await withClient(async (client) => {
     const exists = await client.query(
-      `SELECT 1 FROM file_archive WHERE id = $1 AND visible = $2 AND scope = $3`,
-      [id, 'yes', ARCHIVE_SCOPE],
+      `SELECT 1 FROM file_archive WHERE id = $1 AND visible = $2 AND scope = ANY($3::text[])`,
+      [id, 'yes', ARCHIVE_SCOPE_VALUES],
     );
     if (!exists.rowCount) return undefined;
 
