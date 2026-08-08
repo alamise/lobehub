@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { agentRuntimeClient } from '@/services/agentRuntime/client';
 import { aiAgentService } from '@/services/aiAgent';
 
-import BusinessAgentChatPanel from './index';
+import BusinessAgentChatPanel, { isCurrentArchiveReferenceHref } from './index';
 
 vi.mock('@/services/agentRuntime/client', () => ({
   agentRuntimeClient: {
@@ -18,7 +19,9 @@ vi.mock('@/services/aiAgent', () => ({
   },
 }));
 
-const renderPanel = () =>
+type PanelProps = ComponentProps<typeof BusinessAgentChatPanel>;
+
+const renderPanel = (props?: Partial<PanelProps>) =>
   render(
     <BusinessAgentChatPanel
       agentId="agt_archive"
@@ -26,11 +29,12 @@ const renderPanel = () =>
       kind="archive"
       placeholder="请输入问题"
       title="文档问答助手"
+      {...props}
     />,
   );
 
-const sendQuestion = async () => {
-  renderPanel();
+const sendQuestion = async (props?: Partial<PanelProps>) => {
+  renderPanel(props);
   fireEvent.change(screen.getByPlaceholderText('请输入问题'), {
     target: { value: '本文档标题是什么？' },
   });
@@ -90,5 +94,44 @@ describe('BusinessAgentChatPanel', () => {
     });
 
     expect(await screen.findByText('network failed')).toBeInTheDocument();
+  });
+
+  it('detects current archive reference links', () => {
+    expect(isCurrentArchiveReferenceHref('/enforcement/archive/74929#pageNum=7', '74929')).toBe(
+      true,
+    );
+    expect(isCurrentArchiveReferenceHref('#p7', '74929')).toBe(true);
+    expect(isCurrentArchiveReferenceHref('/enforcement/archive/1#pageNum=7', '74929')).toBe(false);
+    expect(isCurrentArchiveReferenceHref('https://example.com/doc#pageNum=7', '74929')).toBe(false);
+    expect(
+      isCurrentArchiveReferenceHref(
+        'https://lobe.local/enforcement/archive/74929#pageNum=7',
+        '74929',
+      ),
+    ).toBe(false);
+  });
+
+  it('calls internal reference handler for current archive links only', async () => {
+    const onInternalReferenceClick = vi.fn();
+    const streamOptions = await sendQuestion({ onInternalReferenceClick });
+
+    act(() => {
+      streamOptions.onEvent?.({
+        data: {
+          content:
+            '依据见 [P7](/enforcement/archive/74929#pageNum=7)，其他档案 [P3](/enforcement/archive/1#pageNum=3)。',
+        },
+        operationId: 'op_archive',
+        stepIndex: 0,
+        timestamp: Date.now(),
+        type: 'stream_chunk',
+      });
+    });
+
+    fireEvent.click(await screen.findByRole('link', { name: 'P7' }));
+    expect(onInternalReferenceClick).toHaveBeenCalledWith('/enforcement/archive/74929#pageNum=7');
+
+    fireEvent.click(screen.getByRole('link', { name: 'P3' }));
+    expect(onInternalReferenceClick).toHaveBeenCalledTimes(1);
   });
 });

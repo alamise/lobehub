@@ -6,6 +6,7 @@ import { Button } from '@lobehub/ui/base-ui';
 import { Empty, Input, Spin, Typography } from 'antd';
 import { createStaticStyles, cx } from 'antd-style';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 
 import { agentRuntimeClient } from '@/services/agentRuntime/client';
@@ -36,6 +37,7 @@ interface BusinessAgentChatPanelProps {
   disabledReason?: string;
   guideQuestions?: string[];
   kind: BusinessAgentKind;
+  onInternalReferenceClick?: (href: string) => void;
   placeholder: string;
   title: string;
 }
@@ -150,6 +152,23 @@ const buildBusinessContext = (
     : { enterpriseId: contextId, kind: 'enterprise' };
 };
 
+const hasPageHash = (hash: string) =>
+  /^#(?:pageNum|page)=\d+$/i.test(hash) || /^#p\d+$/i.test(hash);
+
+export const isCurrentArchiveReferenceHref = (href: string | undefined, contextId: string) => {
+  const value = href?.trim();
+  if (!value || !contextId) return false;
+  if (hasPageHash(value)) return true;
+  if (/^[a-z][a-z\d+.-]*:\/\//i.test(value) || value.startsWith('//')) return false;
+
+  try {
+    const url = new URL(value, 'https://lobe.local');
+    return url.pathname === `/enforcement/archive/${contextId}` && hasPageHash(url.hash);
+  } catch {
+    return false;
+  }
+};
+
 const readJson = <T,>(key: string, fallback: T): T => {
   if (typeof window === 'undefined') return fallback;
 
@@ -196,7 +215,16 @@ const updateRecord = (
   );
 
 const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
-  ({ agentId, contextId, disabledReason, guideQuestions = [], kind, placeholder, title }) => {
+  ({
+    agentId,
+    contextId,
+    disabledReason,
+    guideQuestions = [],
+    kind,
+    onInternalReferenceClick,
+    placeholder,
+    title,
+  }) => {
     const [input, setInput] = useState('');
     const [records, setRecords] = useState<ChatRecord[]>([]);
     const [running, setRunning] = useState(false);
@@ -205,6 +233,24 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
     const storageKey = useMemo(() => buildStorageKey(kind, contextId), [contextId, kind]);
     const topicKey = useMemo(() => buildTopicKey(kind, contextId), [contextId, kind]);
     const canSend = Boolean(agentId && contextId && input.trim() && !running);
+    const markdownComponents = useMemo<Components>(
+      () => ({
+        a: ({ children, href, ...props }) => (
+          <a
+            {...props}
+            href={href}
+            onClick={(event) => {
+              if (!isCurrentArchiveReferenceHref(href, contextId)) return;
+              event.preventDefault();
+              onInternalReferenceClick?.(href || '');
+            }}
+          >
+            {children}
+          </a>
+        ),
+      }),
+      [contextId, onInternalReferenceClick],
+    );
 
     useEffect(() => {
       closeStream(streamRef.current);
@@ -430,7 +476,9 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
                     ) : (
                       <div className={styles.answer}>
                         <div className="markdown-body">
-                          <ReactMarkdown>{record.answer}</ReactMarkdown>
+                          <ReactMarkdown components={markdownComponents}>
+                            {record.answer}
+                          </ReactMarkdown>
                         </div>
                       </div>
                     )}

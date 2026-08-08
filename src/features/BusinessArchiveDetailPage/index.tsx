@@ -46,6 +46,8 @@ import {
 import { useSession } from '@/libs/better-auth/auth-client';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
+import { parseArchivePageHash } from './utils';
+
 const LIST_PATH = '/enforcement/archive';
 const KNOWLEDGE_LIST_PATH = '/office/knowledge-base';
 const PAGE_SIZE = 500;
@@ -551,17 +553,44 @@ const BusinessArchiveDetailPage = memo(() => {
   const [showText, setShowText] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [aiTab, setAiTab] = useState<AiTab>('guide');
+  const [hashPageNum, setHashPageNum] = useState<number | undefined>(() =>
+    typeof window === 'undefined' ? undefined : parseArchivePageHash(window.location.hash),
+  );
 
-  const selectedPageNum = Number.parseInt(searchParams.get('pageNum') || '1', 10) || 1;
+  const queryPageNum = Number.parseInt(searchParams.get('pageNum') || '1', 10) || 1;
+  const selectedPageNum = hashPageNum ?? queryPageNum;
 
   const setSelectedPageNum = useCallback(
     (pageNum: number) => {
       const next = new URLSearchParams(searchParams);
       next.set('pageNum', String(pageNum));
+      setHashPageNum(undefined);
       setSearchParams(next, { replace: true });
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const query = next.toString();
+        window.history.replaceState(
+          null,
+          '',
+          `${window.location.pathname}${query ? `?${query}` : ''}`,
+        );
+      }
     },
     [searchParams, setSearchParams],
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncPageHash = () => {
+      const nextPageNum = parseArchivePageHash(window.location.hash);
+      setHashPageNum(nextPageNum);
+      if (nextPageNum) setPreviewMode('page');
+    };
+
+    syncPageHash();
+    window.addEventListener('hashchange', syncPageHash);
+    return () => window.removeEventListener('hashchange', syncPageHash);
+  }, [archiveId]);
 
   const loadArchive = useCallback(async () => {
     if (!Number.isFinite(archiveId) || archiveId <= 0) {
@@ -658,6 +687,15 @@ const BusinessArchiveDetailPage = memo(() => {
   );
   const currentPageIndex = currentPage ? pages.findIndex((page) => page.id === currentPage.id) : -1;
   const totalPages = archive?.page_count || pages.length;
+
+  useEffect(() => {
+    if (!hashPageNum || pages.length === 0) return;
+    if (pages.some((page) => page.page_num === hashPageNum)) return;
+
+    setHashPageNum(undefined);
+    message.warning('引用页码不存在');
+  }, [hashPageNum, pages]);
+
   const groupedArchives = useMemo(
     () => groupArchives(categories, enterpriseArchives, archive?.category_code),
     [archive?.category_code, categories, enterpriseArchives],
@@ -693,6 +731,28 @@ const BusinessArchiveDetailPage = memo(() => {
   const handleOpenArchive = (id: number) => {
     navigate(`/enforcement/archive/${id}${isKnowledgeSource ? '?source=knowledge' : ''}`);
   };
+
+  const handleInternalReferenceClick = useCallback(
+    (href: string) => {
+      if (typeof window === 'undefined') return;
+
+      const url = new URL(href, window.location.origin);
+      const matchedArchiveId = url.pathname.match(/^\/enforcement\/archive\/([^/]+)$/)?.[1];
+      if (matchedArchiveId && matchedArchiveId !== String(archiveId)) return;
+
+      const pageNum = parseArchivePageHash(url.hash || href);
+      if (!pageNum) return;
+
+      setHashPageNum(pageNum);
+      setPreviewMode('page');
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${window.location.search}#pageNum=${pageNum}`,
+      );
+    },
+    [archiveId],
+  );
 
   const handleDownload = () => {
     message.info('原 PDF 暂不可下载');
@@ -1125,6 +1185,7 @@ const BusinessArchiveDetailPage = memo(() => {
                 disabledReason={
                   isKnowledgeSource ? '知识库文档问答暂未接入当前档案助手' : undefined
                 }
+                onInternalReferenceClick={handleInternalReferenceClick}
               />
             </div>
           )}
