@@ -74,7 +74,7 @@ describe('ImageSearchRef Render', () => {
       // so query by role "button" (the chip) and verify href/target attributes.
       const chip = screen.getByRole('button', { name: 'image_0.png' });
       expect(chip).toHaveAttribute('href', imageResult.imageUri);
-      expect(chip).toHaveAttribute('target', '_blank');
+      expect(chip).not.toHaveAttribute('target');
     });
 
     it('should show originalText inside the chip', () => {

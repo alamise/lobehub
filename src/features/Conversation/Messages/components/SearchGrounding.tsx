@@ -267,7 +267,6 @@ const SearchGrounding = memo<GroundingSearch>(
                             className={styles.imageCardLink}
                             href={item.imageUri}
                             rel="noopener noreferrer"
-                            target="_blank"
                           >
                             <div className={styles.imageThumbWrap}>
                               <img
@@ -281,7 +280,6 @@ const SearchGrounding = memo<GroundingSearch>(
                             className={styles.imageCardLink}
                             href={item.sourceUri}
                             rel="noopener noreferrer"
-                            target="_blank"
                             title={item.title ? stripHtml(item.title) : undefined}
                           >
                             <Flexbox gap={2}>

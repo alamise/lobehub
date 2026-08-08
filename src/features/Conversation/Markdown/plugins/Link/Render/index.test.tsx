@@ -333,7 +333,7 @@ describe('Link Render — open an external link in the side browser', () => {
     const anchor = container.querySelector('a')!;
 
     expect(anchor).not.toHaveAttribute(RENDERER_HANDLED_LINK_ATTR);
-    expect(anchor).toHaveAttribute('target', '_blank');
+    expect(anchor).not.toHaveAttribute('target');
 
     fireEvent.click(anchor);
     expect(mockOpenInBrowserTab).not.toHaveBeenCalled();

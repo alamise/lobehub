@@ -66,7 +66,7 @@ const LinkChip = memo<LinkChipProps>(({ href, icon, label }) => {
   );
 
   const link = (
-    <a className={styles.chip} href={href} rel="noopener noreferrer" target="_blank">
+    <a className={styles.chip} href={href} rel="noopener noreferrer">
       {icon && <span className={styles.icon}>{icon}</span>}
       {label}
     </a>

@@ -182,7 +182,6 @@ export const InternalEntityLink = memo<InternalEntityLinkProps>(({ href, label, 
       className={styles.link}
       href={href}
       rel="noopener noreferrer"
-      target="_blank"
       onClick={handleClick}
     >
       {icon && <Icon icon={icon} size={14} />}

@@ -8,6 +8,7 @@ import { type CSSProperties, lazy, memo, type PropsWithChildren, Suspense } from
 import { LobeAnalyticsProviderWrapper } from '@/components/Analytics/LobeAnalyticsProviderWrapper';
 import { DragUploadProvider } from '@/components/DragUploadZone/DragUploadProvider';
 import { isDesktop } from '@/const/version';
+import { useSameWindowLinkNavigation } from '@/hooks/useSameWindowLinkNavigation';
 import AuthProvider from '@/layout/AuthProvider';
 import { MarketAuthProvider } from '@/layout/AuthProvider/MarketAuth';
 import AppTheme from '@/layout/GlobalProvider/AppTheme';
@@ -48,6 +49,8 @@ const SPAGlobalProvider = memo<PropsWithChildren>(({ children }) => {
   const locale = document.documentElement.lang || 'en-US';
   const isMobile =
     (serverConfig?.isMobile ?? typeof __MOBILE__ !== 'undefined') ? __MOBILE__ : false;
+
+  useSameWindowLinkNavigation();
 
   const content = (
     <QueryProvider>

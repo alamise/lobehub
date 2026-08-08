@@ -106,12 +106,7 @@ const Render = memo<MarkdownElementProps<ImageSearchRefProperties>>(({ node, id 
   const popoverContent = (
     <Flexbox gap={4} style={{ maxWidth: 240 }}>
       {image.imageUri && (
-        <a
-          className={styles.imageCardLink}
-          href={image.imageUri}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
+        <a className={styles.imageCardLink} href={image.imageUri} rel="noopener noreferrer">
           <img
             alt={image.title ? stripHtml(image.title) : ''}
             className={styles.imageThumb}
@@ -123,7 +118,6 @@ const Render = memo<MarkdownElementProps<ImageSearchRefProperties>>(({ node, id 
         className={styles.imageCardLink}
         href={image.sourceUri || image.imageUri}
         rel="noopener noreferrer"
-        target="_blank"
         title={image.title ? stripHtml(image.title) : undefined}
       >
         <Flexbox gap={2}>
@@ -152,7 +146,6 @@ const Render = memo<MarkdownElementProps<ImageSearchRefProperties>>(({ node, id 
         href={image.imageUri}
         rel="noopener noreferrer"
         style={{ color: 'inherit', textDecoration: 'none' }}
-        target="_blank"
       >
         <span className={styles.refChip}>
           {image.imageUri && (
