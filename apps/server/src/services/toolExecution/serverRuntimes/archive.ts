@@ -15,10 +15,16 @@ const parseArchiveId = (value: string): number | undefined => {
 
 export const archiveRuntime: ServerRuntimeRegistration = {
   factory: (context) => {
+    // 临时诊断：确认运行时是否真的拿到 businessContext（上次调研未决点）。
+    // 确认正常后移除本行。
+    console.error('[archive-runtime] factory invoked, businessContext=', context.businessContext);
+
     const businessContext = context.businessContext;
 
     return {
-      getArchiveInfo: async () => {
+      // 注意：方法名必须与 manifest 声明的 api.name 完全一致
+      // （builtin.ts 按 runtime[apiName] 直接取方法），否则会走 UNKNOWN_API 报错分支。
+      get_current_archive: async () => {
         // The panel only renders this tool inside an archive-scoped conversation,
         // but guard anyway so the model gets a clear message instead of a crash.
         if (!businessContext || businessContext.kind !== 'archive') {
