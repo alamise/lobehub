@@ -740,18 +740,15 @@ const BusinessArchiveDetailPage = memo(() => {
       const matchedArchiveId = url.pathname.match(/^\/enforcement\/archive\/([^/]+)$/)?.[1];
       if (matchedArchiveId && matchedArchiveId !== String(archiveId)) return;
 
-      const pageNum = parseArchivePageHash(url.hash || href);
+      const pageNum =
+        Number.parseInt(url.searchParams.get('pageNum') || '', 10) ||
+        parseArchivePageHash(url.hash || href);
       if (!pageNum) return;
 
-      setHashPageNum(pageNum);
       setPreviewMode('page');
-      window.history.replaceState(
-        null,
-        '',
-        `${window.location.pathname}${window.location.search}#pageNum=${pageNum}`,
-      );
+      setSelectedPageNum(pageNum);
     },
-    [archiveId],
+    [archiveId, setSelectedPageNum],
   );
 
   const handleDownload = () => {

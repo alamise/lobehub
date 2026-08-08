@@ -155,15 +155,25 @@ const buildBusinessContext = (
 const hasPageHash = (hash: string) =>
   /^#(?:pageNum|page)=\d+$/i.test(hash) || /^#p\d+$/i.test(hash);
 
+const hasPageSearch = (search: string) => {
+  const pageNum = new URLSearchParams(search).get('pageNum');
+  const value = Number.parseInt(pageNum || '', 10);
+  return Number.isFinite(value) && value > 0;
+};
+
 export const isCurrentArchiveReferenceHref = (href: string | undefined, contextId: string) => {
   const value = href?.trim();
   if (!value || !contextId) return false;
   if (hasPageHash(value)) return true;
+  if (value.startsWith('?') && hasPageSearch(value)) return true;
   if (/^[a-z][a-z\d+.-]*:\/\//i.test(value) || value.startsWith('//')) return false;
 
   try {
     const url = new URL(value, 'https://lobe.local');
-    return url.pathname === `/enforcement/archive/${contextId}` && hasPageHash(url.hash);
+    return (
+      url.pathname === `/enforcement/archive/${contextId}` &&
+      (hasPageSearch(url.search) || hasPageHash(url.hash))
+    );
   } catch {
     return false;
   }

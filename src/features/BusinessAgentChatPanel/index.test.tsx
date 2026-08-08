@@ -100,6 +100,10 @@ describe('BusinessAgentChatPanel', () => {
     expect(isCurrentArchiveReferenceHref('/enforcement/archive/74929#pageNum=7', '74929')).toBe(
       true,
     );
+    expect(isCurrentArchiveReferenceHref('/enforcement/archive/74929?pageNum=7', '74929')).toBe(
+      true,
+    );
+    expect(isCurrentArchiveReferenceHref('?pageNum=7', '74929')).toBe(true);
     expect(isCurrentArchiveReferenceHref('#p7', '74929')).toBe(true);
     expect(isCurrentArchiveReferenceHref('/enforcement/archive/1#pageNum=7', '74929')).toBe(false);
     expect(isCurrentArchiveReferenceHref('https://example.com/doc#pageNum=7', '74929')).toBe(false);
@@ -119,7 +123,7 @@ describe('BusinessAgentChatPanel', () => {
       streamOptions.onEvent?.({
         data: {
           content:
-            '依据见 [P7](/enforcement/archive/74929#pageNum=7)，其他档案 [P3](/enforcement/archive/1#pageNum=3)。',
+            '依据见 [P7](/enforcement/archive/74929?pageNum=7)，其他档案 [P3](/enforcement/archive/1?pageNum=3)。',
         },
         operationId: 'op_archive',
         stepIndex: 0,
@@ -129,7 +133,7 @@ describe('BusinessAgentChatPanel', () => {
     });
 
     fireEvent.click(await screen.findByRole('link', { name: 'P7' }));
-    expect(onInternalReferenceClick).toHaveBeenCalledWith('/enforcement/archive/74929#pageNum=7');
+    expect(onInternalReferenceClick).toHaveBeenCalledWith('/enforcement/archive/74929?pageNum=7');
 
     fireEvent.click(screen.getByRole('link', { name: 'P3' }));
     expect(onInternalReferenceClick).toHaveBeenCalledTimes(1);
