@@ -578,6 +578,7 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 |   21 | 集成测试                         | 覆盖页面发送到 MCP 工具的完整链路                   | 档案 / 企业详情页问答联调                                                                                                                 | 待开始 |
 |   22 | 回归验证                         | 确认普通 Agent、私有 Agent、已有共享 Agent 不受影响 | 普通聊天、工具调用、引用展示、调试面板、会话历史                                                                                          | 待开始 |
 |   23 | 部署配置说明                     | 明确生产环境需要配置的 Agent ID 和开关              | `.env` 示例、部署文档、管理员操作说明                                                                                                     | 待开始 |
+|   24 | 修复业务面板流式结束误报         | 回答完成后主动关闭 SSE 不再覆盖为失败状态           | `BusinessAgentChatPanel` 区分主动关闭和真实流错误，保留已完成回答                                                                         | 已完成 |
 
 本轮验证记录：
 
@@ -587,6 +588,8 @@ LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 - 第二批已接入企业 / 档案详情右侧最小问答面板，使用 `execAgent` + Agent Runtime stream 获取回答；默认 topic ID 和当前浏览器提问记录暂存 localStorage，后续再接完整会话历史。
 - `execAgent` 已增加业务上下文存在性 / 可见性校验，校验口径与现有业务详情接口一致；当前不是新增用户级业务数据授权模型。
 - 已通过 `npx vitest run apps/server/src/routers/lambda/_helpers/businessContextGuard.test.ts`，覆盖业务上下文存在性 / 可见性 guard。
+- 已通过 `npx vitest run src/features/BusinessAgentChatPanel/index.test.tsx`，覆盖 `agent_runtime_end` 后主动关闭流产生的 `AbortError` 不会覆盖已完成回答，普通流错误仍显示失败。
+- 已通过 `npx eslint src/features/BusinessAgentChatPanel/index.tsx src/features/BusinessAgentChatPanel/index.test.tsx`，确认本次前端修复符合当前 lint 规则。
 
 ## 已确认事项
 

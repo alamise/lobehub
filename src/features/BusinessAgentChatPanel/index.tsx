@@ -24,6 +24,12 @@ interface ChatRecord {
   topicId?: string;
 }
 
+interface ActiveStream {
+  controller?: AbortController;
+  intentionallyClosed: boolean;
+  operationId: string;
+}
+
 interface BusinessAgentChatPanelProps {
   agentId?: string;
   contextId: string;
@@ -165,6 +171,16 @@ const removeItem = (key: string) => {
   window.localStorage.removeItem(key);
 };
 
+const isAbortError = (error: Error) =>
+  error.name === 'AbortError' || error.message.toLowerCase().includes('aborted');
+
+const closeStream = (stream: ActiveStream | null) => {
+  if (!stream) return;
+
+  stream.intentionallyClosed = true;
+  stream.controller?.abort();
+};
+
 const updateRecord = (
   records: ChatRecord[],
   id: string,
@@ -184,14 +200,14 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
     const [input, setInput] = useState('');
     const [records, setRecords] = useState<ChatRecord[]>([]);
     const [running, setRunning] = useState(false);
-    const streamRef = useRef<AbortController | null>(null);
+    const streamRef = useRef<ActiveStream | null>(null);
 
     const storageKey = useMemo(() => buildStorageKey(kind, contextId), [contextId, kind]);
     const topicKey = useMemo(() => buildTopicKey(kind, contextId), [contextId, kind]);
     const canSend = Boolean(agentId && contextId && input.trim() && !running);
 
     useEffect(() => {
-      streamRef.current?.abort();
+      closeStream(streamRef.current);
       streamRef.current = null;
       setRunning(false);
       setInput('');
@@ -204,13 +220,13 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
 
     useEffect(
       () => () => {
-        streamRef.current?.abort();
+        closeStream(streamRef.current);
       },
       [],
     );
 
     const handleClear = useCallback(() => {
-      streamRef.current?.abort();
+      closeStream(streamRef.current);
       streamRef.current = null;
       setRunning(false);
       setRecords([]);
@@ -264,10 +280,21 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
             }),
           );
 
-          streamRef.current?.abort();
-          streamRef.current = agentRuntimeClient.createStreamConnection(result.operationId, {
+          closeStream(streamRef.current);
+          streamRef.current = null;
+
+          const activeStream: ActiveStream = {
+            intentionallyClosed: false,
+            operationId: result.operationId,
+          };
+
+          streamRef.current = activeStream;
+          activeStream.controller = agentRuntimeClient.createStreamConnection(result.operationId, {
             includeHistory: true,
             onError: (error) => {
+              if (activeStream.intentionallyClosed && isAbortError(error)) return;
+              if (streamRef.current !== activeStream) return;
+
               setRunning(false);
               setRecords((current) =>
                 updateRecord(current, recordId, {
@@ -277,6 +304,8 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
               );
             },
             onEvent: (event) => {
+              if (streamRef.current !== activeStream) return;
+
               if (event.type === 'stream_chunk' && typeof event.data?.content === 'string') {
                 setRecords((current) =>
                   updateRecord(current, recordId, (record) => ({
@@ -307,8 +336,10 @@ const BusinessAgentChatPanel = memo<BusinessAgentChatPanelProps>(
                     status: 'completed',
                   })),
                 );
-                streamRef.current?.abort();
-                streamRef.current = null;
+                closeStream(activeStream);
+                if (streamRef.current === activeStream) {
+                  streamRef.current = null;
+                }
                 return;
               }
 
