@@ -12,11 +12,14 @@ export interface AiArchiveItem {
   create_time?: string;
   dept_name?: string;
   doc_no?: string;
+  extracted_title?: string;
   id: number;
   page_count?: number;
   process_status?: string;
   responsible_party?: string;
   title?: string;
+  title_from_llm?: string;
+  title_in_excel?: string;
   year?: string;
 }
 

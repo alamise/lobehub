@@ -1,29 +1,23 @@
 'use client';
 
-import { Card, Pagination, Typography, message } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
+import { message, Pagination, Typography } from 'antd';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
+import BusinessPageContainer from '@/features/BusinessPageContainer';
 import { parseAsInteger, parseAsString, useQueryParam } from '@/hooks/useQueryParam';
 import { useUrlPage } from '@/hooks/useUrlPage';
 import { useSession } from '@/libs/better-auth/auth-client';
 
 import {
-  getAiArchives,
-  getArchiveCategories,
   type AiArchiveItem,
   type ArchiveCategory,
+  getAiArchives,
+  getArchiveCategories,
 } from './api';
-import { ArchiveTable, SearchToolbar, type ArchiveFilterDraft } from './components';
-import {
-  DEFAULT_SORT_FIELD,
-  DEFAULT_SORT_ORDER,
-  PAGE_SIZE,
-  PAGE_SIZE_OPTIONS,
-} from './constants';
-
-import BusinessPageContainer from '@/features/BusinessPageContainer';
+import { type ArchiveFilterDraft, ArchiveTable, SearchToolbar } from './components';
+import { DEFAULT_SORT_FIELD, DEFAULT_SORT_ORDER, PAGE_SIZE, PAGE_SIZE_OPTIONS } from './constants';
 
 const URL_OPTIONS = { clearOnDefault: true, history: 'replace' as const };
 
@@ -33,36 +27,33 @@ const useUrlString = (key: string) =>
 
 const BusinessArchivePage = memo(() => {
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const { data: session, isPending } = useSession();
   const authToken = useMemo(
-    () => ((session as { accessToken?: string } | null | undefined)?.accessToken ?? null),
+    () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
   );
 
   // —— 已提交的过滤 / 排序 / 分页状态（全部同步 URL，对齐旧版行为）——
   const [page, setPage] = useUrlPage();
-  const [size, setSize] = useQueryParam(
-    'size',
-    parseAsInteger.withDefault(PAGE_SIZE),
-    URL_OPTIONS,
-  );
-  const [sortField, setSortField] = useQueryParam(
+  const [size] = useQueryParam('size', parseAsInteger.withDefault(PAGE_SIZE), URL_OPTIONS);
+  const [sortField] = useQueryParam(
     'sortField',
     parseAsString.withDefault(DEFAULT_SORT_FIELD),
     URL_OPTIONS,
   );
-  const [sortOrderRaw, setSortOrder] = useQueryParam(
+  const [sortOrderRaw] = useQueryParam(
     'sortOrder',
     parseAsString.withDefault(DEFAULT_SORT_ORDER),
     URL_OPTIONS,
   );
   const sortOrder: 'asc' | 'desc' = sortOrderRaw === 'desc' ? 'desc' : 'asc';
 
-  const [title, setTitle] = useUrlString('title');
-  const [docNo, setDocNo] = useUrlString('docNo');
-  const [year, setYear] = useUrlString('year');
-  const [categoryPrefix, setCategoryPrefix] = useUrlString('categoryPrefix');
-  const [categoryCode, setCategoryCode] = useUrlString('categoryCode');
+  const [title] = useUrlString('title');
+  const [docNo] = useUrlString('docNo');
+  const [year] = useUrlString('year');
+  const [categoryPrefix] = useUrlString('categoryPrefix');
+  const [categoryCode] = useUrlString('categoryCode');
 
   // —— 输入框草稿状态（点击搜索后才提交）——
   const [draft, setDraft] = useState<ArchiveFilterDraft>({
@@ -102,7 +93,18 @@ const BusinessArchivePage = memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [authToken, categoryCode, categoryPrefix, docNo, page, size, sortField, sortOrder, title, year]);
+  }, [
+    authToken,
+    categoryCode,
+    categoryPrefix,
+    docNo,
+    page,
+    size,
+    sortField,
+    sortOrder,
+    title,
+    year,
+  ]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -123,33 +125,96 @@ const BusinessArchivePage = memo(() => {
     void loadArchives();
   }, [isPending, loadArchives]);
 
+  useEffect(() => {
+    setDraft({ categoryCode, categoryPrefix, docNo, title, year });
+  }, [categoryCode, categoryPrefix, docNo, title, year]);
+
   const handleDraftChange = (patch: Partial<ArchiveFilterDraft>) => {
     setDraft((prev) => ({ ...prev, ...patch }));
   };
 
+  const commitQuery = useCallback(
+    (next: {
+      categoryCode?: string;
+      categoryPrefix?: string;
+      docNo?: string;
+      page?: number;
+      size?: number;
+      sortField?: string;
+      sortOrder?: 'asc' | 'desc';
+      title?: string;
+      year?: string;
+    }) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          const setOrDelete = (key: string, value: string, defaultValue = '') => {
+            if (!value || value === defaultValue) {
+              params.delete(key);
+            } else {
+              params.set(key, value);
+            }
+          };
+
+          const nextPage = next.page ?? page;
+          const nextSize = next.size ?? size;
+          const nextSortField = next.sortField ?? sortField;
+          const nextSortOrder = next.sortOrder ?? sortOrder;
+
+          setOrDelete('page', String(nextPage), '1');
+          setOrDelete('size', String(nextSize), String(PAGE_SIZE));
+          setOrDelete('sortField', nextSortField, DEFAULT_SORT_FIELD);
+          setOrDelete('sortOrder', nextSortOrder, DEFAULT_SORT_ORDER);
+          setOrDelete('title', next.title ?? title);
+          setOrDelete('docNo', next.docNo ?? docNo);
+          setOrDelete('year', next.year ?? year);
+          setOrDelete('categoryPrefix', next.categoryPrefix ?? categoryPrefix);
+          setOrDelete('categoryCode', next.categoryCode ?? categoryCode);
+
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [
+      categoryCode,
+      categoryPrefix,
+      docNo,
+      page,
+      setSearchParams,
+      size,
+      sortField,
+      sortOrder,
+      title,
+      year,
+    ],
+  );
+
   const handleSearch = () => {
-    setTitle(draft.title.trim());
-    setDocNo(draft.docNo.trim());
-    setYear(draft.year.trim());
-    setCategoryPrefix(draft.categoryPrefix);
-    setCategoryCode(draft.categoryCode);
-    setPage(1);
+    commitQuery({
+      categoryCode: draft.categoryCode,
+      categoryPrefix: draft.categoryPrefix,
+      docNo: draft.docNo.trim(),
+      page: 1,
+      title: draft.title.trim(),
+      year: draft.year.trim(),
+    });
   };
 
   const handleClear = () => {
     setDraft({ categoryCode: '', categoryPrefix: '', docNo: '', title: '', year: '' });
-    setTitle('');
-    setDocNo('');
-    setYear('');
-    setCategoryPrefix('');
-    setCategoryCode('');
-    setPage(1);
+    commitQuery({
+      categoryCode: '',
+      categoryPrefix: '',
+      docNo: '',
+      page: 1,
+      title: '',
+      year: '',
+    });
   };
 
   const handleSortChange = (field: string, order: 'asc' | 'desc') => {
-    setSortField(field);
-    setSortOrder(order);
-    setPage(1);
+    commitQuery({ page: 1, sortField: field, sortOrder: order });
   };
 
   const hasFilter = Boolean(title || docNo || year || categoryPrefix || categoryCode);
@@ -180,48 +245,45 @@ const BusinessArchivePage = memo(() => {
         </div>
       </div>
 
-      <Card bordered={false} className="shadow-sm">
-        <div className="space-y-4">
-          <SearchToolbar
-            categories={categories}
-            draft={draft}
-            hasFilter={hasFilter}
-            loading={loading}
-            onClear={handleClear}
-            onDraftChange={handleDraftChange}
-            onSearch={handleSearch}
-          />
+      <div className="space-y-4">
+        <SearchToolbar
+          categories={categories}
+          draft={draft}
+          hasFilter={hasFilter}
+          loading={loading}
+          onClear={handleClear}
+          onDraftChange={handleDraftChange}
+          onSearch={handleSearch}
+        />
 
-          <ArchiveTable
-            archives={archives}
-            loading={loading}
-            onDetail={openDetail}
-            onSortChange={handleSortChange}
-            sortField={sortField}
-            sortOrder={sortOrder}
-          />
+        <ArchiveTable
+          archives={archives}
+          loading={loading}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onDetail={openDetail}
+          onSortChange={handleSortChange}
+        />
 
-          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <Typography.Text type="secondary">共 {total} 条记录</Typography.Text>
-            <Pagination
-              current={page}
-              disabled={loading}
-              onChange={(nextPage, nextSize) => {
-                if (nextSize !== size) {
-                  setSize(nextSize);
-                  setPage(1);
-                } else {
-                  setPage(nextPage);
-                }
-              }}
-              pageSize={size}
-              pageSizeOptions={PAGE_SIZE_OPTIONS}
-              showSizeChanger
-              total={total}
-            />
-          </div>
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <Typography.Text type="secondary">共 {total} 条记录</Typography.Text>
+          <Pagination
+            showSizeChanger
+            current={page}
+            disabled={loading}
+            pageSize={size}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            total={total}
+            onChange={(nextPage, nextSize) => {
+              if (nextSize !== size) {
+                commitQuery({ page: 1, size: nextSize });
+              } else {
+                setPage(nextPage);
+              }
+            }}
+          />
         </div>
-      </Card>
+      </div>
     </div>
   );
 });

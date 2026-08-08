@@ -92,11 +92,14 @@ interface ArchiveRow extends QueryResultRow {
   create_time: string | null;
   dept_name: string | null;
   doc_no: string | null;
+  extracted_title: string | null;
   id: number;
   page_count: number | null;
   process_status: string | null;
   responsible_party: string | null;
   title: string | null;
+  title_from_llm: string | null;
+  title_in_excel: string | null;
   year: string | null;
 }
 
@@ -130,6 +133,9 @@ const buildOrderClause = (sortColumn: string, order: 'ASC' | 'DESC') =>
 const selectColumns = `
   fa.id,
   fa.title,
+  fa.title_from_llm,
+  fa.title_in_excel,
+  fa.extracted_title,
   fa.doc_no,
   fa.year,
   fa.page_count,
@@ -157,11 +163,14 @@ const mapArchive = (row: ArchiveRow) => ({
   create_time: row.create_time || '',
   dept_name: row.dept_name || '',
   doc_no: row.doc_no || '',
+  extracted_title: row.extracted_title || '',
   id: Number(row.id),
   page_count: row.page_count == null ? 0 : Number(row.page_count),
   process_status: row.process_status || 'pending',
   responsible_party: row.responsible_party || '',
-  title: row.title || '',
+  title: row.title || row.title_from_llm || row.title_in_excel || row.extracted_title || '',
+  title_from_llm: row.title_from_llm || '',
+  title_in_excel: row.title_in_excel || '',
   year: row.year || '',
 });
 
@@ -186,7 +195,16 @@ AiArchiveRoutes.get('/', async (c) => {
     where.push(`${column} ILIKE $${params.length} ESCAPE '\\'`);
   };
 
-  addLike('fa.title', url.searchParams.get('title'));
+  const addTitleLike = (value: string | null) => {
+    if (!value) return;
+    params.push(`%${escapeLike(value)}%`);
+    const idx = params.length;
+    where.push(
+      `(fa.title ILIKE $${idx} ESCAPE '\\' OR fa.title_from_llm ILIKE $${idx} ESCAPE '\\' OR fa.title_in_excel ILIKE $${idx} ESCAPE '\\' OR fa.extracted_title ILIKE $${idx} ESCAPE '\\')`,
+    );
+  };
+
+  addTitleLike(url.searchParams.get('title'));
   addLike('fa.doc_no', url.searchParams.get('doc_no'));
   addLike('fa.responsible_party', url.searchParams.get('responsible_party'));
 
@@ -195,7 +213,7 @@ AiArchiveRoutes.get('/', async (c) => {
     params.push(`%${escapeLike(search)}%`);
     const idx = params.length;
     where.push(
-      `(fa.title ILIKE $${idx} ESCAPE '\\' OR fa.doc_no ILIKE $${idx} ESCAPE '\\' OR fa.responsible_party ILIKE $${idx} ESCAPE '\\')`,
+      `(fa.title ILIKE $${idx} ESCAPE '\\' OR fa.title_from_llm ILIKE $${idx} ESCAPE '\\' OR fa.title_in_excel ILIKE $${idx} ESCAPE '\\' OR fa.extracted_title ILIKE $${idx} ESCAPE '\\' OR fa.doc_no ILIKE $${idx} ESCAPE '\\' OR fa.responsible_party ILIKE $${idx} ESCAPE '\\')`,
     );
   }
 
@@ -297,8 +315,8 @@ const getArchivePageOssPath = async (archiveId: number, pageNum: number) =>
   });
 
 const serveArchivePageAsset = async (c: Context, type: 'image' | 'thumbnail') => {
-  const id = toPositiveInt(c.req.param('id'), 0);
-  const pageNum = toPositiveInt(c.req.param('pageNum'), 0);
+  const id = toPositiveInt(c.req.param('id') ?? null, 0);
+  const pageNum = toPositiveInt(c.req.param('pageNum') ?? null, 0);
   if (!id) throw new HTTPException(400, { message: 'Invalid archive id' });
   if (!pageNum) throw new HTTPException(400, { message: 'Invalid page num' });
 
