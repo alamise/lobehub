@@ -375,16 +375,19 @@ appContext: {
 
 ```env
 LOBE_BUSINESS_ARCHIVE_AGENT_ID=agt_xxx_document_qa
+LOBE_BUSINESS_DOC_FORMAT_AGENT_ID=agt_xxx_doc_format
 LOBE_BUSINESS_ENTERPRISE_AGENT_ID=agt_xxx_enterprise_qa
 ```
 
 运行时规则：
 
 - 档案详情页右侧面板读取 `LOBE_BUSINESS_ARCHIVE_AGENT_ID`，加载文档问答助手
+- 左侧菜单「公文格式调整」读取 `LOBE_BUSINESS_DOC_FORMAT_AGENT_ID`，跳转 `/agent/<id>` 智能体会话
 - 企业详情页右侧面板读取 `LOBE_BUSINESS_ENTERPRISE_AGENT_ID`，加载企业问答助手
 - `archiveId/archive_id` 来自档案详情页 URL / 路由参数，不来自配置文件
 - `enterpriseId/enterprise_id` 来自企业详情页 URL / 路由参数，不来自配置文件
 - 配置文件只保存 “使用哪个 Agent”，不保存 “当前问哪个档案 / 企业”
+- 公文格式调整菜单路由不再写死在代码里，更换智能体仅需修改 `LOBE_BUSINESS_DOC_FORMAT_AGENT_ID`
 
 示例：
 
