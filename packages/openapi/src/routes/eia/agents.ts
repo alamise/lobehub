@@ -41,9 +41,21 @@ export const THREE_LINE_AGENT_ID = 'agt_SHmqyDcCW67g';
  *
  * 智能体 ID 通过环境变量 LOBE_EIA_WATER_AGENT_ID 配置：
  * 在 LobeHub 创建智能体后，把 ID 写入 /opt/program/lobehub/.env 并执行 docker compose up -d lobe 即可生效，
- * 无需重新构建镜像。
+ * 无需重新构建镜像。未配置时回落到下方的线上默认 ID。
  */
-export const waterProtectionAgentId = () => (process.env.LOBE_EIA_WATER_AGENT_ID || '').trim();
+export const waterProtectionAgentId = () =>
+  (process.env.LOBE_EIA_WATER_AGENT_ID || '').trim() || 'agt_RPAv1KFq6ubM';
+
+/**
+ * 「环评准入判定-声环境功能区划」决策智能体。
+ * 该智能体自身挂载 hbai-mcp 工具（geocode_address / check_acoustic_zone_collision /
+ * search_law），由智能体自主完成 地址→坐标→声环境功能区碰撞→法条依据 全链路后给出判定。
+ * 内部直接调用（B 方案），不走对外 HTTP API Key 链路。
+ *
+ * 智能体 ID 通过环境变量 LOBE_EIA_ACOUSTIC_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const acousticZoneAgentId = () =>
+  (process.env.LOBE_EIA_ACOUSTIC_AGENT_ID || '').trim() || 'agt_K35oRwHwnT52';
 
 export const AgentCode = {
   admission: 'eia_assessment_admission',
