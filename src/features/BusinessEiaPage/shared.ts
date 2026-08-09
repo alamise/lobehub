@@ -47,6 +47,7 @@ export const admissionDecisionStatusOptions = [
   '判定通过',
   '判定不通过',
   '受限准入',
+  '需要进一步核实',
   '待补充信息',
 ] as const;
 
@@ -555,6 +556,7 @@ export const deriveSpatialSubstepStatus = (
   if (values.includes('判定中')) return '判定中';
   if (values.includes('判定不通过')) return '判定不通过';
   if (values.includes('受限准入')) return '受限准入';
+  if (values.includes('需要进一步核实')) return '需要进一步核实';
   if (values.includes('待补充信息')) return '待补充信息';
   if (values.includes('未判定')) return '未判定';
   return '判定通过';
@@ -569,7 +571,7 @@ export type AssessmentFinalDecision = '通过' | '受限准入' | '未通过' | 
 const toFinalDecision = (status: string): AssessmentFinalDecision => {
   if (status === '待补充信息' || status === '未判定' || status === '判定中') return '待补充信息';
   if (status === '判定不通过' || status === '未通过') return '未通过';
-  if (status === '受限准入') return '受限准入';
+  if (status === '受限准入' || status === '需要进一步核实') return '受限准入';
   return '通过';
 };
 
@@ -693,6 +695,9 @@ export const decisionStatusColor = (status: string): string => {
     }
     case '受限准入': {
       return '#ea580c';
+    }
+    case '需要进一步核实': {
+      return '#0d9488';
     }
     case '判定不通过': {
       return '#e11d48';

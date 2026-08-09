@@ -57,6 +57,23 @@ export const waterProtectionAgentId = () =>
 export const acousticZoneAgentId = () =>
   (process.env.LOBE_EIA_ACOUSTIC_AGENT_ID || '').trim() || 'agt_K35oRwHwnT52';
 
+/**
+ * 「环评准入判定-生态保护红线」决策智能体（mock 阶段）。
+ * 仅用大模型自身知识做初步研判，不挂接任何 MCP 工具、禁止联网搜索，
+ * 返回“判定通过 / 需要进一步核实 / 待补充信息”。内部直接调用（B 方案）。
+ * 智能体 ID 通过环境变量 LOBE_EIA_ECO_REDLINE_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const ecologicalRedlineAgentId = () =>
+  (process.env.LOBE_EIA_ECO_REDLINE_AGENT_ID || '').trim() || 'agt_NhKo8HHWWCzG';
+
+/**
+ * 「环评准入判定-国土空间规划」决策智能体（mock 阶段）。
+ * 与生态保护红线同理，仅用大模型自身知识做初步研判，不挂工具、禁搜索。
+ * 智能体 ID 通过环境变量 LOBE_EIA_LAND_PLAN_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const territorialPlanningAgentId = () =>
+  (process.env.LOBE_EIA_LAND_PLAN_AGENT_ID || '').trim() || 'agt_GndwaqlMzTvm';
+
 export const AgentCode = {
   admission: 'eia_assessment_admission',
   conclusion: 'eia_assessment_conclusion',
@@ -334,6 +351,10 @@ const ADMISSION_STATUS_MAP: Record<string, string> = {
   判定不通过: '判定不通过',
   受限准入: '受限准入',
   待补充信息: '待补充信息',
+  需要进一步核实: '需要进一步核实',
+  needs_review: '需要进一步核实',
+  need_review: '需要进一步核实',
+  further_verification: '需要进一步核实',
 };
 
 export const normalizeAdmissionStatus = (status: string): string => {

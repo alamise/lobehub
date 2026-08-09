@@ -103,6 +103,9 @@ export const decisionTextColor = (status: string): string => {
     case '受限准入': {
       return C.orange600;
     }
+    case '需要进一步核实': {
+      return '#0d9488';
+    }
     case '判定不通过': {
       return C.rose600;
     }

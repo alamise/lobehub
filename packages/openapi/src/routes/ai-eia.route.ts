@@ -12,7 +12,13 @@ import {
 } from './eia/agents';
 import { buildDocx, type DocxParagraph } from './eia/docx';
 import { mustJsonCompact } from './eia/llm';
-import { analyzeAcousticZone, analyzeControlZone, analyzeWaterProtection } from './eia/spatial';
+import {
+  analyzeAcousticZone,
+  analyzeControlZone,
+  analyzeEcologicalRedline,
+  analyzeTerritorialPlanning,
+  analyzeWaterProtection,
+} from './eia/spatial';
 import {
   applyAdmissionResult,
   applyConclusionResult,
@@ -187,7 +193,7 @@ const deriveFinalDecision = (record: EiaRecordDTO): string => {
 
   const key = [statuses.policy, statuses.spatial];
   if (key.includes('判定不通过')) return '未通过';
-  if (key.includes('受限准入')) return '受限准入';
+  if (key.includes('受限准入') || key.includes('需要进一步核实')) return '受限准入';
   if (
     key.some((item) => !item || item === '未判定' || item === '判定中' || item === '待补充信息')
   ) {
@@ -492,6 +498,8 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
         'spatial:waterProtection',
         'spatial:acousticZone',
         'spatial:threeLine',
+        'spatial:ecoRedline',
+        'spatial:landPlan',
       ]);
       try {
         let out: AdmissionDecisionOutput;
@@ -502,7 +510,11 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
               ? analyzeWaterProtection
               : targetId === 'spatial:acousticZone'
                 ? analyzeAcousticZone
-                : analyzeControlZone;
+                : targetId === 'spatial:ecoRedline'
+                  ? analyzeEcologicalRedline
+                  : targetId === 'spatial:landPlan'
+                    ? analyzeTerritorialPlanning
+                    : analyzeControlZone;
           // 三个带地图预览的空间维度均走共享智能体（内部 B 方案），必须带上 userId / workspaceId
           const { data, raw } = await runner({
             record,
