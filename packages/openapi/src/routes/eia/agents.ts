@@ -74,6 +74,16 @@ export const ecologicalRedlineAgentId = () =>
 export const territorialPlanningAgentId = () =>
   (process.env.LOBE_EIA_LAND_PLAN_AGENT_ID || '').trim() || 'agt_GndwaqlMzTvm';
 
+/**
+ * 「环评准入判定-未来科技城规划环评判定」决策智能体（mock 阶段）。
+ * 现阶段仅用大模型自身知识做初步研判，不挂工具、禁搜索；待基础框架完成、
+ * 真实规划一张图 MCP 就绪后，由用户自行在 UI 给该智能体挂接 MCP 工具并调整提示词，
+ * 后端代码无需改动（本函数只负责解析其 JSON 产出）。
+ * 智能体 ID 通过环境变量 LOBE_EIA_FUTURE_CITY_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const futureTechCityAgentId = () =>
+  (process.env.LOBE_EIA_FUTURE_CITY_AGENT_ID || '').trim() || 'agt_YHJhIN3L6UYE';
+
 export const AgentCode = {
   admission: 'eia_assessment_admission',
   conclusion: 'eia_assessment_conclusion',
@@ -362,9 +372,8 @@ export const normalizeAdmissionStatus = (status: string): string => {
   return ADMISSION_STATUS_MAP[trimmed] ?? '待补充信息';
 };
 
-/** 现阶段 mock 的非空间二级步骤：直接返回判定成功，打通主流程；未来接入对应共享智能体后替换 */
+/** 现阶段 mock 的非空间二级步骤（未来科技城已接入共享智能体，不再此处 mock）：直接返回判定成功，打通主流程；未来接入对应共享智能体后替换 */
 const MOCK_ADMISSION_TARGETS = new Set<string>([
-  'futureCity',
   'renheBase',
   'canalZone',
   'liangzhu',
@@ -442,7 +451,49 @@ ${mustJson(input.record)}`;
     };
   }
 
-  // 其余非空间二级步骤（未来科技城 / 仁和 / 运河 / 良渚 / 太湖 / 重大变动）：
+  // 未来科技城规划环评判定：内部直接调用「未来科技城规划环评判定共享智能体」（B 方案）。
+  // 现阶段智能体自身不挂工具、禁搜索，仅用大模型知识做初步研判，返回
+  //   判定通过 / 需要进一步核实 / 待补充信息
+  // 严格依赖智能体自身配置产出结果，不引入任何直连 LLM 降级。
+  // 待真实规划一张图 MCP 就绪、用户在 UI 给该智能体挂接工具并调整提示词后，此处代码无需改动。
+  if (input.targetId === 'futureCity') {
+    if (!input.userId) {
+      throw new Error('未来科技城规划环评判定缺少用户标识，无法调用共享智能体');
+    }
+    const prompt = `请完成未来科技城规划环评判定。
+
+要求：
+1. status 只能是“判定通过 / 需要进一步核实 / 待补充信息”三者之一。
+2. result_description 为面向审批人员的判定说明，须写明：项目与未来科技城规划范围的符合性、与规划产业定位的匹配度、规划环评准入要点、以及需进一步核实的具体事项；不得只给结论。
+3. 只能基于提供材料推断，信息不足或项目说明过于匮乏时返回“待补充信息”。
+4. 必须只输出合法 JSON：{"status": "...", "result_description": "..."}，不得附加任何解释性文字或代码块标记。
+
+环评判定记录：
+${mustJson(input.record)}`;
+    const { text } = await runSharedAgent({
+      agentId: futureTechCityAgentId(),
+      prompt,
+      signal: input.signal,
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+    });
+    const { status, result_description } = extractAdmissionResult(text);
+    if (!status) {
+      throw new Error(
+        `未来科技城规划环评判定智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`,
+      );
+    }
+    return {
+      agentCode,
+      data: {
+        result_description: result_description.trim(),
+        status: normalizeAdmissionStatus(status),
+      },
+      raw: text,
+    };
+  }
+
+  // 其余非空间二级步骤（仁和 / 运河 / 良渚 / 太湖 / 重大变动）：
   // 现阶段 mock 返回判定成功以打通主流程，未来接入对应共享智能体后替换此处即可。
   if (MOCK_ADMISSION_TARGETS.has(input.targetId)) {
     return {
