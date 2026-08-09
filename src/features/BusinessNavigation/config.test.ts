@@ -17,13 +17,8 @@ describe('businessNavOfficeGroup', () => {
     expect(documentFormatItem?.path).toBeUndefined();
   });
 
-  it('exposes the admin-only agent management entry', () => {
-    const agentManagementItem = businessNavTopItems.find((item) => item.key === 'agent-management');
-
-    expect(agentManagementItem).toMatchObject({
-      adminOnly: true,
-      path: '/agents',
-      title: '智能体管理',
-    });
+  it('no longer exposes the agent management entry (moved to settings)', () => {
+    // 智能体管理已迁移到“设置 → 智能体”分组（/settings/agents）
+    expect(businessNavTopItems.find((item) => item.key === 'agent-management')).toBeUndefined();
   });
 });

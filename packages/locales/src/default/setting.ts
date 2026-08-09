@@ -1338,6 +1338,7 @@ When I am ___, I need ___
   'tab.addCustomMcp.desc': 'Manually configure a custom MCP server',
   'tab.addCustomSkill': 'Add',
   'tab.agent': 'Agent',
+  'tab.agentManagement': 'Agent Management',
   'tab.all': 'All',
   'tab.apikey': 'API Keys',
   'tab.appearance': 'Appearance',

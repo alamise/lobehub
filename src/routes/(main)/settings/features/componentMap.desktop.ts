@@ -8,6 +8,7 @@ import { SettingsTabs } from '@/store/global/initialState';
 
 import About from '../about';
 import Advanced from '../advanced';
+import Agents from '../agents';
 import APIKey from '../apikey';
 import Appearance from '../appearance';
 import Connector from '../connector';
@@ -34,6 +35,7 @@ export const componentMap = {
   [SettingsTabs.Appearance]: Appearance,
   [SettingsTabs.Provider]: Provider,
   [SettingsTabs.ServiceModel]: ServiceModel,
+  [SettingsTabs.Agents]: Agents,
   [SettingsTabs.Memory]: Memory,
   [SettingsTabs.Messenger]: Messenger,
   [SettingsTabs.Notification]: Notification,

@@ -47,6 +47,7 @@ export interface SettingsSearchItem {
 export const TAB_SEARCH_EN_KEYWORDS: Partial<Record<SettingsTabs, string[]>> = {
   [SettingsTabs.About]: ['about', 'version', 'changelog', 'feedback', 'help'],
   [SettingsTabs.Advanced]: ['advanced', 'developer', 'diagnostics'],
+  [SettingsTabs.Agents]: ['agents', 'agent management', 'assistants'],
   [SettingsTabs.APIKey]: ['api key', 'apikey', 'token', 'secret'],
   [SettingsTabs.Appearance]: [
     'appearance',

@@ -118,6 +118,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
     <>
       {Object.keys(componentMap).map((tabKey) => {
         const isFullWidth =
+          tabKey === SettingsTabs.Agents ||
           tabKey === SettingsTabs.Provider ||
           tabKey === SettingsTabs.Skill ||
           tabKey === SettingsTabs.Connector ||

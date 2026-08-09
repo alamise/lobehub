@@ -5,6 +5,7 @@ import {
   AppWindowIcon,
   BellIcon,
   Blocks,
+  Bot,
   Brain,
   BrainCircuit,
   ChartColumnBigIcon,
@@ -29,6 +30,7 @@ import {
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useIsAdminAccount } from '@/business/client/hooks/useIsAdminAccount';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -78,6 +80,8 @@ export const useCategory = () => {
   const remoteServerUrl = useElectronStore(electronSyncSelectors.remoteServerUrl);
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
   const enableOAuthApps = useUserStore(labPreferSelectors.enableOAuthApps);
+  // 智能体管理原先挂在业务一级菜单，现收敛到设置的“智能体”分组，沿用管理员可见约束
+  const isAdmin = useIsAdminAccount();
 
   const avatarUrl = useMemo(() => {
     if (!avatar) return undefined;
@@ -151,6 +155,12 @@ export const useCategory = () => {
 
     // Agent group
     const agentItems: CategoryItem[] = [
+      // 智能体管理（管理员可见）：与“AI 服务商”“服务模型”同组，作为智能体配置入口的首项
+      isAdmin && {
+        icon: Bot,
+        key: SettingsTabs.Agents,
+        label: t('tab.agentManagement'),
+      },
       // Provider settings should not depend on Advanced tools: new users may need
       // non-LobeHub providers, and desktop users often bring their own API keys.
       showProvider && {
@@ -275,6 +285,7 @@ export const useCategory = () => {
     showProvider,
     isDevMode,
     enableOAuthApps,
+    isAdmin,
     avatarUrl,
     username,
   ]);

@@ -61,6 +61,8 @@ export enum SettingsTabs {
   Advanced = 'advanced',
   /** @deprecated Use ServiceModel instead */
   Agent = 'agent',
+  /** Agent management (admin-only) surfaced inside the Agent settings group */
+  Agents = 'agents',
   APIKey = 'apikey',
   Appearance = 'appearance',
   Billing = 'billing',

@@ -26,6 +26,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+const { mockIsAdmin } = vi.hoisted(() => ({ mockIsAdmin: { value: true } }));
+
+vi.mock('@/business/client/hooks/useIsAdminAccount', () => ({
+  useAdminAccountState: () => ({ isAdmin: mockIsAdmin.value, isLoading: false }),
+  useIsAdminAccount: () => mockIsAdmin.value,
+}));
+
 const createWrapper = (showProvider: boolean) => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <Provider
@@ -59,6 +66,7 @@ const initialUserStoreState = useUserStore.getState();
 
 afterEach(() => {
   cleanup();
+  mockIsAdmin.value = true;
   useUserStore.setState(initialUserStoreState, true);
 });
 
@@ -75,6 +83,24 @@ describe('settings useCategory', () => {
     const keys = result.current.flatMap((group) => group.items.map((item) => item.key));
 
     expect(keys).not.toContain(SettingsTabs.Provider);
+  });
+
+  it('puts agent management next to provider / service model for admins', () => {
+    const { result } = renderHook(() => useCategory(), {
+      wrapper: createWrapper(true),
+    });
+    const agentGroup = result.current.find((group) => group.key === SettingsGroupKey.Agent);
+    const keys = agentGroup?.items.map((item) => item.key);
+
+    expect(keys).toContain(SettingsTabs.Agents);
+    expect(keys).toContain(SettingsTabs.Provider);
+    expect(keys).toContain(SettingsTabs.ServiceModel);
+  });
+
+  it('hides agent management for non-admin accounts', () => {
+    mockIsAdmin.value = false;
+
+    expect(getItemKeys()).not.toContain(SettingsTabs.Agents);
   });
 
   it('hides OAuth Apps by default', () => {

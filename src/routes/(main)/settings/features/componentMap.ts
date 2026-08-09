@@ -22,6 +22,9 @@ export const componentMap = {
   [SettingsTabs.ServiceModel]: dynamic(() => import('../service-model'), {
     loading: loading('Settings > ServiceModel'),
   }),
+  [SettingsTabs.Agents]: dynamic(() => import('../agents'), {
+    loading: loading('Settings > Agents'),
+  }),
   [SettingsTabs.Memory]: dynamic(() => import('../memory'), {
     loading: loading('Settings > Memory'),
   }),

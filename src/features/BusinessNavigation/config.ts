@@ -39,13 +39,7 @@ export const businessNavTopItems: BusinessNavLeafItem[] = [
     path: '/',
     title: '首页',
   },
-  {
-    adminOnly: true,
-    icon: Bot,
-    key: 'agent-management',
-    path: '/agents',
-    title: '智能体管理',
-  },
+  // 智能体管理入口已迁移至“设置 → 智能体”分组（/settings/agents），不再占用业务一级菜单
   {
     icon: Bot,
     key: 'ai-digital-human',

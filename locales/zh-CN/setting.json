@@ -1152,6 +1152,7 @@
   "tab.advanced.updateChannel.stableDesc": "正式发布版本。",
   "tab.advanced.updateChannel.title": "更新通道",
   "tab.agent": "助理服务",
+  "tab.agentManagement": "智能体管理",
   "tab.all": "全部",
   "tab.apikey": "API Key 管理",
   "tab.appearance": "外观",

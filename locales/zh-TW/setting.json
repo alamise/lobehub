@@ -1152,6 +1152,7 @@
   "tab.advanced.updateChannel.stableDesc": "適合生產環境的正式版本。",
   "tab.advanced.updateChannel.title": "更新頻道",
   "tab.agent": "默認助手",
+  "tab.agentManagement": "智能體管理",
   "tab.all": "全部",
   "tab.apikey": "API Key 管理",
   "tab.appearance": "外觀",

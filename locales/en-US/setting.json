@@ -1152,6 +1152,7 @@
   "tab.advanced.updateChannel.stableDesc": "Production-ready releases.",
   "tab.advanced.updateChannel.title": "Update channel",
   "tab.agent": "Agent",
+  "tab.agentManagement": "Agent Management",
   "tab.all": "All",
   "tab.apikey": "API Keys",
   "tab.appearance": "Appearance",
