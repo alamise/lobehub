@@ -19,10 +19,12 @@ import {
 } from 'lucide-react';
 import { memo } from 'react';
 
+import { useIsAdminAccount } from '@/business/client/hooks/useIsAdminAccount';
 import { SHARED_AGENT_PATH } from '@/features/BusinessNavigation/config';
 import ToggleLeftPanelButton from '@/features/NavPanel/ToggleLeftPanelButton';
 import UserAvatar from '@/features/User/UserAvatar';
 import { useWorkspaceAwareNavigate } from '@/features/Workspace/useWorkspaceAwareNavigate';
+import WorkspaceLink from '@/features/Workspace/WorkspaceLink';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/selectors';
 
@@ -294,6 +296,19 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     background: #fff;
     box-shadow: 0 2px 10px rgb(15 23 42 / 5%);
   `,
+  settingsEntry: css`
+    cursor: pointer;
+
+    padding-block: 6px;
+    padding-inline: 12px;
+    border-radius: 8px;
+
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: #f0f3f7;
+    }
+  `,
 }));
 
 interface MetricCard {
@@ -405,6 +420,7 @@ const getDonutStyle = (percent: number) => {
 
 const Home = memo(() => {
   const navigate = useWorkspaceAwareNavigate();
+  const isAdmin = useIsAdminAccount();
   const [nickname, username] = useUserStore((s) => [
     userProfileSelectors.nickName(s),
     userProfileSelectors.username(s),
@@ -432,6 +448,18 @@ const Home = memo(() => {
           </span>
         </Flexbox>
         <Flexbox horizontal align="center" gap={24}>
+          {isAdmin && (
+            <Flexbox horizontal align="center" gap={8}>
+              <WorkspaceLink className={styles.settingsEntry} to="/settings">
+                <Text color="#27364b" fontSize={14} weight={600}>
+                  系统设置
+                </Text>
+              </WorkspaceLink>
+              <Text color="#9fb0c8" fontSize={12}>
+                仅管理员可见
+              </Text>
+            </Flexbox>
+          )}
           <span style={{ display: 'inline-flex', position: 'relative' }}>
             <Icon color="#8da0b8" icon={Bell} size={22} />
             <span
