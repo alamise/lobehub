@@ -84,6 +84,89 @@ export const territorialPlanningAgentId = () =>
 export const futureTechCityAgentId = () =>
   (process.env.LOBE_EIA_FUTURE_CITY_AGENT_ID || '').trim() || 'agt_YHJhIN3L6UYE';
 
+/**
+ * 「环评准入判定-仁和先进制造业基地规划环评判定」决策智能体（mock 阶段）。
+ * 现阶段仅用大模型自身知识做初步研判，不挂工具、禁搜索；待基础框架完成、
+ * 真实 MCP 就绪后，由用户自行在 UI 给该智能体挂接 MCP 工具并调整提示词，后端代码无需改动。
+ * 智能体 ID 通过环境变量 LOBE_EIA_RENHE_BASE_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const renheBaseAgentId = () =>
+  (process.env.LOBE_EIA_RENHE_BASE_AGENT_ID || '').trim() || 'agt_oXOTd7RnWdTl';
+
+/**
+ * 「环评准入判定-大运河核心监控区判定」决策智能体（mock 阶段）。
+ * 与仁和同理，仅用大模型自身知识做初步研判，不挂工具、禁搜索。
+ * 智能体 ID 通过环境变量 LOBE_EIA_CANAL_ZONE_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const canalZoneAgentId = () =>
+  (process.env.LOBE_EIA_CANAL_ZONE_AGENT_ID || '').trim() || 'agt_jjmbltHQ8dmK';
+
+/**
+ * 「环评准入判定-良渚遗址保护规划判定」决策智能体（mock 阶段）。
+ * 与仁和同理，仅用大模型自身知识做初步研判，不挂工具、禁搜索。
+ * 智能体 ID 通过环境变量 LOBE_EIA_LIANGZHU_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const liangzhuAgentId = () =>
+  (process.env.LOBE_EIA_LIANGZHU_AGENT_ID || '').trim() || 'agt_99vgBsjGC8oz';
+
+/**
+ * 「环评准入判定-太湖流域准入判定」决策智能体（mock 阶段）。
+ * 与仁和同理，仅用大模型自身知识做初步研判，不挂工具、禁搜索。
+ * 智能体 ID 通过环境变量 LOBE_EIA_TAIHU_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const taihuAgentId = () =>
+  (process.env.LOBE_EIA_TAIHU_AGENT_ID || '').trim() || 'agt_hr7aR3sI8HKo';
+
+/**
+ * 「环评准入判定-重大变动判定」决策智能体（mock 阶段）。
+ * 与仁和同理，仅用大模型自身知识做初步研判，不挂工具、禁搜索。
+ * 智能体 ID 通过环境变量 LOBE_EIA_MAJOR_CHANGE_AGENT_ID 配置，未配置时回落到线上默认 ID。
+ */
+export const majorChangeAgentId = () =>
+  (process.env.LOBE_EIA_MAJOR_CHANGE_AGENT_ID || '').trim() || 'agt_iFVlDP9s6buv';
+
+/**
+ * 非空间二级步骤 → 共享智能体 分发表（B 方案）。
+ * 每个子步骤委托各自智能体产出结果，后端只负责组织输入、调用智能体、容错解析 JSON。
+ * 智能体现阶段均不挂工具、禁搜索，仅用大模型知识做初步研判；
+ * 待真实 MCP 就绪、用户在 UI 配置后，本表与下方调度逻辑均无需改动。
+ */
+const ADMISSION_SHARED_AGENT_TARGETS: Record<
+  string,
+  { agentId: () => string; domainHint: string }
+> = {
+  futureCity: {
+    agentId: futureTechCityAgentId,
+    domainHint:
+      '须写明项目与未来科技城规划范围的符合性、与规划产业定位的匹配度、规划环评准入要点、以及需进一步核实的具体事项',
+  },
+  renheBase: {
+    agentId: renheBaseAgentId,
+    domainHint:
+      '须写明项目是否位于仁和先进制造业基地范围、是否符合基地产业导向与规划环评要求、是否涉及基地内重点管控区域、以及需进一步核实的具体事项',
+  },
+  canalZone: {
+    agentId: canalZoneAgentId,
+    domainHint:
+      '须写明项目是否涉及大运河（杭州段）核心监控区、是否命中核心监控区负面清单、与《大运河文化保护传承利用规划纲要》及核心监控区管控要求的符合性、以及需进一步核实的具体事项',
+  },
+  liangzhu: {
+    agentId: liangzhuAgentId,
+    domainHint:
+      '须写明项目是否涉及良渚遗址保护范围或建设控制地带、与良渚遗址保护规划及世界文化遗产保护管理要求的符合性、管控要求及结论、以及需进一步核实的具体事项',
+  },
+  taihu: {
+    agentId: taihuAgentId,
+    domainHint:
+      '须写明项目是否位于太湖流域、是否涉及流域内重点限制行业（如化工、印染、造纸等）或水环境敏感区域、与《太湖流域管理条例》及总磷总氮管控要求的符合性、以及需进一步核实的具体事项',
+  },
+  majorChange: {
+    agentId: majorChangeAgentId,
+    domainHint:
+      '须写明与原环评相比的主要变化内容、是否对照《建设项目重大变动清单》构成重大变动、若构成重大变动建议重新报批环评手续的路径、以及需进一步核实的具体事项',
+  },
+};
+
 export const AgentCode = {
   admission: 'eia_assessment_admission',
   conclusion: 'eia_assessment_conclusion',
@@ -372,15 +455,6 @@ export const normalizeAdmissionStatus = (status: string): string => {
   return ADMISSION_STATUS_MAP[trimmed] ?? '待补充信息';
 };
 
-/** 现阶段 mock 的非空间二级步骤（未来科技城已接入共享智能体，不再此处 mock）：直接返回判定成功，打通主流程；未来接入对应共享智能体后替换 */
-const MOCK_ADMISSION_TARGETS = new Set<string>([
-  'renheBase',
-  'canalZone',
-  'liangzhu',
-  'taihu',
-  'majorChange',
-]);
-
 /** 容错解析准入判定结果：status 为简单枚举值；result_description 为自由文本，容忍未转义英文引号 */
 const extractAdmissionResult = (text: string): { status: string; result_description: string } => {
   // 先剥掉 <think>、```json 代码块并截取到最外层花括号，
@@ -451,27 +525,28 @@ ${mustJson(input.record)}`;
     };
   }
 
-  // 未来科技城规划环评判定：内部直接调用「未来科技城规划环评判定共享智能体」（B 方案）。
-  // 现阶段智能体自身不挂工具、禁搜索，仅用大模型知识做初步研判，返回
+  // 以下非空间二级步骤（未来科技城 / 仁和 / 运河 / 良渚 / 太湖 / 重大变动）统一调用各自「共享智能体」（B 方案）。
+  // 智能体自身现阶段不挂工具、禁搜索，仅用大模型知识做初步研判，返回
   //   判定通过 / 需要进一步核实 / 待补充信息
   // 严格依赖智能体自身配置产出结果，不引入任何直连 LLM 降级。
-  // 待真实规划一张图 MCP 就绪、用户在 UI 给该智能体挂接工具并调整提示词后，此处代码无需改动。
-  if (input.targetId === 'futureCity') {
+  // 待真实 MCP 就绪、用户在 UI 给对应智能体挂接工具并调整提示词后，此处代码无需改动。
+  const sharedTarget = ADMISSION_SHARED_AGENT_TARGETS[input.targetId];
+  if (sharedTarget) {
     if (!input.userId) {
-      throw new Error('未来科技城规划环评判定缺少用户标识，无法调用共享智能体');
+      throw new Error(`${targetLabel}缺少用户标识，无法调用共享智能体`);
     }
-    const prompt = `请完成未来科技城规划环评判定。
+    const prompt = `请完成${targetLabel}。
 
 要求：
 1. status 只能是“判定通过 / 需要进一步核实 / 待补充信息”三者之一。
-2. result_description 为面向审批人员的判定说明，须写明：项目与未来科技城规划范围的符合性、与规划产业定位的匹配度、规划环评准入要点、以及需进一步核实的具体事项；不得只给结论。
+2. result_description 为面向审批人员的判定说明，${sharedTarget.domainHint}；不得只给结论。
 3. 只能基于提供材料推断，信息不足或项目说明过于匮乏时返回“待补充信息”。
 4. 必须只输出合法 JSON：{"status": "...", "result_description": "..."}，不得附加任何解释性文字或代码块标记。
 
 环评判定记录：
 ${mustJson(input.record)}`;
     const { text } = await runSharedAgent({
-      agentId: futureTechCityAgentId(),
+      agentId: sharedTarget.agentId(),
       prompt,
       signal: input.signal,
       userId: input.userId,
@@ -480,7 +555,7 @@ ${mustJson(input.record)}`;
     const { status, result_description } = extractAdmissionResult(text);
     if (!status) {
       throw new Error(
-        `未来科技城规划环评判定智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`,
+        `${targetLabel}智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`,
       );
     }
     return {
@@ -493,51 +568,7 @@ ${mustJson(input.record)}`;
     };
   }
 
-  // 其余非空间二级步骤（仁和 / 运河 / 良渚 / 太湖 / 重大变动）：
-  // 现阶段 mock 返回判定成功以打通主流程，未来接入对应共享智能体后替换此处即可。
-  if (MOCK_ADMISSION_TARGETS.has(input.targetId)) {
-    return {
-      agentCode,
-      data: {
-        result_description: '（mock）判定通过（待接入正式智能体）',
-        status: normalizeAdmissionStatus('approved'),
-      },
-      raw: 'mock',
-    };
-  }
-
-  const systemPrompt = `你是"${targetLabel} Agent"。
-你不能调用任何工具，只能根据给定材料完成一次准入判定。
-你必须只输出 JSON，对象格式如下：
-{
-  "status": "判定通过|判定不通过|受限准入|待补充信息",
-  "result_description": "给审批人员看的结果说明"
-}`;
-  let userPrompt = `请完成“${targetLabel}”。
-
-要求：
-1. status 只能是“判定通过 / 判定不通过 / 受限准入 / 待补充信息”四者之一。
-2. result_description 要明确写出判断依据、风险点或待补材料，不要只给结论。
-3. 只能基于提供材料推断，信息不足时返回“待补充信息”。
-4. 必须返回合法 JSON。
-5. 如材料中附带正式政策条文、管控规则或准入要求，result_description 必须结合这些条文说明结论依据，不得只复述空间命中结果。
-
-记录：
-${mustJson(input.record)}`;
-  userPrompt = appendKnowledgeContextPrompt(userPrompt, input.knowledgeContext);
-
-  const { data, raw } = await callJson<AdmissionDecisionOutput>(systemPrompt, userPrompt, {
-    signal: input.signal,
-  });
-  return {
-    agentCode,
-    data: {
-      map_preview_url: (data.map_preview_url || '').trim(),
-      result_description: (data.result_description || '').trim(),
-      status: normalizeAdmissionStatus(data.status),
-    },
-    raw,
-  };
+  throw new Error(`暂不支持的准入判定子步骤: ${input.targetId}`);
 };
 
 // ---------------------------------------------------------------------------
