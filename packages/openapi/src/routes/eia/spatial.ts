@@ -4,15 +4,17 @@
  *   eia_water_protection_service.go / eia_acoustic_zone_service.go / eia_control_zone_service.go
  */
 
-import { withClient } from '../legacyDb';
+import { runSharedAgent } from './agentRunner';
 import {
   type AdmissionDecisionOutput,
   type AnalyzeInput,
   extractProjectAddressByModel,
+  normalizeAdmissionStatus,
   runAdmissionDecision,
+  THREE_LINE_AGENT_ID,
   type ToolCallTrace,
 } from './agents';
-import { mustJsonCompact } from './llm';
+import { extractJsonText, mustJsonCompact } from './llm';
 import { defaultSpatialMap, type WorkflowRecord } from './state';
 
 const DEFAULT_AMAP_KEY = '64f3434145aaaa237eba0ca8978ee0a0';
@@ -486,189 +488,130 @@ export const analyzeAcousticZone = async (
 };
 
 // ---------------------------------------------------------------------------
-// 三线一单（含区域管控政策关联）
+// 三线一单分区管控（共享智能体 + hbai-mcp 工具链）
 // ---------------------------------------------------------------------------
+//
+// 与饮用水源保护区 / 声环境功能区的两阶段本地流水线不同，三线一单整条链路
+// （地址识别 → 高德地理编码 → 空间碰撞检测 → 生态环境管控单元政策库关联 → 准入判定）
+// 全部交由「环评准入判定-三线一单分区管控」决策智能体自主完成，其挂载的 hbai-mcp 工具为：
+//   1. geocode_address              地址 → 经纬度
+//   2. check_control_zone_collision 经纬度 → 三线一单图斑碰撞结果（含 map_preview_url）
+//   3. lookup_control_policy        管控单元编码 → 区域管控政策条文
+// 后端只负责组织输入、调用智能体、容错解析其 JSON 输出，不做任何直连 LLM 降级。
 
-interface PolicyMatchContext {
-  control_policy?: ControlPolicyRow;
-  eligible: boolean;
-  policy_matched: boolean;
-  skip_reason?: string;
-  spatial_match: CollisionMatch;
-  unit_code?: string;
-}
-
-const extractEligibleControlUnitCode = (match: CollisionMatch): [string, boolean, string] => {
-  const code = (match.protection_code || '').trim();
-  if (!code) return ['', false, '命中图斑缺少管控单元编码'];
-  const haystack = [
-    (match.protection_name || '').trim(),
-    (match.protection_level || '').trim(),
-    (match.category || '').trim(),
-    (match.dataset_name || '').trim(),
-  ].join(' ');
-  if (haystack.includes('园区')) return [code, false, '命中图斑为园区类信息，跳过政策库关联'];
-  if (!haystack.includes('管控单元')) {
-    return [code, false, '命中图斑非生态环境管控单元类，跳过政策库关联'];
-  }
-  if (!code.startsWith('ZH')) return [code, false, '命中图斑编码不是标准管控单元编码'];
-  return [code, true, ''];
-};
-
-export const findControlPoliciesByUnitCodes = async (
-  unitCodes: string[],
-): Promise<Map<string, ControlPolicyRow>> => {
-  const result = new Map<string, ControlPolicyRow>();
-  if (unitCodes.length === 0) return result;
-  const rows = await withClient(async (client) => {
-    const r = await client.query<ControlPolicyRow>(
-      `SELECT id, unit_code, unit_name, unit_category, spatial_layout_guidance,
-              pollutant_emission_control, environmental_risk_prevention,
-              resource_use_efficiency_requirements, priority_control_targets
-       FROM control_policy WHERE unit_code = ANY($1::text[])`,
-      [unitCodes],
-    );
-    return r.rows;
-  });
-  for (const row of rows) result.set(row.unit_code, row);
-  return result;
-};
-
-const buildPolicyMatchContext = async (
-  matches: CollisionMatch[],
-): Promise<PolicyMatchContext[]> => {
-  const contexts: PolicyMatchContext[] = [];
-  const unitCodes: string[] = [];
-  for (const match of matches) {
-    const [unitCode, eligible, skipReason] = extractEligibleControlUnitCode(match);
-    contexts.push({
-      eligible,
-      policy_matched: false,
-      skip_reason: skipReason,
-      spatial_match: match,
-      unit_code: unitCode,
-    });
-    if (eligible) unitCodes.push(unitCode);
-  }
-  if (unitCodes.length === 0) return contexts;
-
+/** 三线一单智能体输出的容错解析：
+ *  status / map_preview_url 结构固定；result_description 为长中文自由文本，
+ *  常夹带未转义的英文双引号导致整体 JSON 非法，故严格解析失败后逐字段抽取。 */
+const extractThreeLineResult = (
+  text: string,
+): { map_preview_url: string; result_description: string; status: string } => {
+  // 先剥掉 <think>、```json 代码块并截取到最外层花括号，
+  // 否则末尾字段的锚定正则会被代码块结束标记顶掉。
+  const cleaned = extractJsonText(text);
+  // 1) 严格解析优先（覆盖绝大多数正常返回）
   try {
-    const policyMap = await findControlPoliciesByUnitCodes(unitCodes);
-    for (const item of contexts) {
-      if (!item.eligible || !item.unit_code) continue;
-      const policy = policyMap.get(item.unit_code);
-      if (!policy) {
-        item.skip_reason = '政策库中未匹配到该管控单元编码';
-        continue;
-      }
-      item.policy_matched = true;
-      item.control_policy = policy;
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    const status = String(parsed.status ?? '').trim();
+    if (status) {
+      return {
+        map_preview_url: String(parsed.map_preview_url ?? '').trim(),
+        result_description: String(parsed.result_description ?? '').trim(),
+        status,
+      };
     }
-  } catch (error) {
-    console.warn('[EIAControlZone] 区域管控政策关联查询失败，回退仅使用空间碰撞结果', error);
+  } catch {
+    // 进入容错分支
   }
-  return contexts;
+  // 2) 容错抽取（容忍 result_description 中的未转义英文双引号）
+  const status = cleaned.match(/"status"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
+  const mapPreviewUrl = cleaned.match(/"map_preview_url"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
+  let description =
+    cleaned
+      .match(/"result_description"\s*:\s*"([\s\S]*?)"\s*,\s*"(?:map_preview_url|status)"\s*:/)?.[1]
+      ?.trim() ?? '';
+  if (!description) {
+    description =
+      cleaned.match(/"result_description"\s*:\s*"([\s\S]*?)"\s*(?:\}\s*)?$/)?.[1]?.trim() ?? '';
+  }
+  return { map_preview_url: mapPreviewUrl, result_description: description, status };
 };
 
-const buildPolicyLookupSummary = (matches: PolicyMatchContext[]): string => {
-  if (matches.length === 0) return '未命中任何三线一单图斑，无需关联区域管控政策。';
-  let eligibleCount = 0;
-  let matchedCount = 0;
-  let skippedCount = 0;
-  for (const item of matches) {
-    if (item.eligible) eligibleCount++;
-    if (item.policy_matched) matchedCount++;
-    if (!item.eligible || !item.policy_matched) skippedCount++;
-  }
-  return `命中图斑${matches.length}条，其中符合生态环境管控单元关联条件${eligibleCount}条，成功匹配区域管控政策${matchedCount}条，其余${skippedCount}条按空间结果直接判定。`;
-};
+/** 交给智能体的固定任务说明（智能体自身系统提示词负责角色与工具调用细则，此处只下达本次任务约束） */
+const THREE_LINE_TASK_PROMPT = `请完成「环评准入判定 - 空间冲突检测 - 三线一单分区管控」判定。
 
-const firstControlZoneMatchDetail = (matches: CollisionMatch[]): string => {
-  if (matches.length === 0) return '';
-  const first = matches[0];
-  const parts: string[] = [];
-  if ((first.protection_name || '').trim()) parts.push(first.protection_name!.trim());
-  if ((first.protection_level || '').trim()) parts.push(first.protection_level!.trim());
-  if ((first.protection_code || '').trim()) parts.push(`编码${first.protection_code!.trim()}`);
-  return parts.join(' / ');
-};
+必须按以下顺序调用 hbai-mcp 工具，不得跳过、不得凭空编造数据：
+1. 从下方环评判定记录（重点看项目简要说明）中识别项目建设地点的完整中文地址，尽量包含省/市/区县与具体路段门牌。
+2. 调用 geocode_address(address) 获取经纬度；若 matched 为 false 或未拿到经纬度，直接返回 status 为“待补充信息”。
+3. 调用 check_control_zone_collision(longitude, latitude) 获取三线一单图斑碰撞结果。
+4. 从碰撞结果 matches 中取出生态环境管控单元类图斑的 protection_code（以 ZH 开头的编码），
+   调用 lookup_control_policy(unit_codes) 获取正式区域管控政策条文；若无 ZH 开头编码或命中的是园区类信息，则跳过本步。
+5. 综合空间命中结果与政策条文给出准入判定。
 
-const normalizeControlZoneStatus = (status: string, inProtectionArea: boolean) => {
-  const trimmed = (status || '').trim();
-  if (trimmed === '待补充信息') return '待补充信息';
-  if (['判定通过', '判定不通过', '受限准入'].includes(trimmed)) {
-    return inProtectionArea ? trimmed : '判定通过';
-  }
-  return inProtectionArea ? '受限准入' : '判定通过';
-};
+判定规则：
+1. 未获取到有效经纬度时，status 必须为“待补充信息”。
+2. in_protection_area 为 false（未命中任何三线一单/生态环境分区管控单元）时，status 必须为“判定通过”。
+3. 命中管控单元时，结合 highest_level、管控单元类别（优先保护单元 / 重点管控单元 / 一般管控单元）
+   与 lookup_control_policy 返回的政策条文综合判断，status 取“判定通过 / 受限准入 / 判定不通过”之一。
+4. 不得自行推导分区管控级别优先级，只能引用工具返回的原始文案表述。
+5. 只能基于工具返回内容作答，严禁虚构未返回的分区管控信息或政策条文。
+
+输出要求：
+1. 只输出一个 JSON 对象，不要输出任何解释性文字、Markdown 代码块标记或思考过程。
+2. JSON 结构固定为：{"status": string, "result_description": string, "map_preview_url": string}。
+3. status 只能取“判定通过 / 判定不通过 / 受限准入 / 待补充信息”四个中文值之一，禁止使用 approved、rejected 等英文值。
+4. result_description 必须写明解析出的项目地址与经纬度、命中情况、命中的管控单元名称/编码/类别，
+   并在拿到政策条文时明确引用空间布局约束、污染物排放管控、环境风险防控、资源利用效率等维度作为判断依据，禁止只给结论。
+5. map_preview_url 必须原样透传 check_control_zone_collision 返回的 map_preview_url，不得省略、改写或置空；工具未返回时填空字符串。
+6. result_description 为自由文本，若需引用文件或条文名称请一律使用中文引号“”；
+   严禁在 JSON 字符串值中使用未转义的英文双引号 "，否则会破坏 JSON 结构导致解析失败。`;
 
 export const analyzeControlZone = async (
   input: AnalyzeInput,
 ): Promise<{ data: AdmissionDecisionOutput; raw: string }> => {
-  const stage = await runStageOne(input, 'controlZone', {
-    description: '三线一单分区管控空间碰撞接口',
-    domain: '三线一单分区管控',
-    errorLabel: '三线一单接口',
-    toolName: 'control_zone_collision_check',
-  });
-  if (stage.fallback) return { data: stage.fallback, raw: mustJsonCompact(stage.trace) };
-
-  const collision = stage.collision!;
-  const coords = stage.coords!;
-  const address = stage.address!;
-  const policyMatches = await buildPolicyMatchContext(collision.matches || []);
-
-  const payload = {
-    coordinates: coords,
-    decision_rules: [
-      '未获取到有效经纬度时，status 必须为“待补充信息”。',
-      '未命中任何三线一单/生态环境分区管控单元时，status 必须为“判定通过”。',
-      '命中三线一单/生态环境分区管控单元时，必须结合空间命中信息、管控单元等级及附带政策条文综合判断 status，可返回“判定通过 / 受限准入 / 判定不通过”。',
-      'control 分区管控级别不自行推导优先级，只能基于 highest_level 和 matches 原始文案表述。',
-      '若 matched_control_policies 中附带了 control_policy，必须结合其中完整政策字段进行准入分析，不得忽略正式管控条文。',
-    ],
-    matched_control_policies: policyMatches,
-    policy_lookup_summary_hint: buildPolicyLookupSummary(policyMatches),
-    project_address: address,
-    spatial_collision: collision,
-    special_conditions: [
-      '只能基于输入的地址解析结果、空间碰撞接口结果、以及已附带的区域管控政策库内容作答，不得虚构未返回的分区管控信息。',
-      'result_description 必须说明命中情况、管控单元名称/编码/等级或类型，并在有政策条文时明确引用政策维度作为判断依据。',
-      'map_preview_url 必须原样透传输入中的 spatial_collision.map_preview_url，不得省略、改写或置空。',
-    ],
-    target_label: '空间冲突检测-三线一单',
-  };
-  stage.trace.decision_payload = payload;
-
-  const decision = await runAdmissionDecision({
-    ...input,
-    knowledgeContext: `以下为三线一单分区管控两阶段判定的固定输入。你必须同时参考空间命中结果与附带的区域管控政策条文，按规则生成结构化结论：\n${mustJsonCompact(payload)}`,
-    record: withSpatialNote(input.record, 'threeLine', payload),
-  });
-  stage.trace.model_raw_response = decision.raw;
-
-  const status = normalizeControlZoneStatus(decision.data.status, collision.in_protection_area);
-  let description = decision.data.result_description.trim();
-  if (!description) {
-    if (status === '判定通过') {
-      description = `项目地址${locationText(address, coords)}未命中三线一单分区管控单元。`;
-    } else if (status === '受限准入') {
-      const detail =
-        firstControlZoneMatchDetail(collision.matches || []) ||
-        (collision.highest_level || '').trim() ||
-        '三线一单分区管控单元';
-      description = `项目地址${locationText(address, coords)}命中${detail}，需进一步核实生态环境分区管控准入要求。`;
-    }
+  if (!input.userId) {
+    throw new Error('三线一单分区管控判定缺少用户标识，无法调用共享智能体');
   }
-  const mapPreviewUrl =
-    buildPreviewUrl(decision.data.map_preview_url) || buildPreviewUrl(collision.map_preview_url);
+
+  const summaryText = (input.record.steps.summary?.content || '').trim();
+  const prompt = `${THREE_LINE_TASK_PROMPT}
+
+项目简要说明：
+${summaryText || '（暂无项目简要说明）'}
+
+环评判定记录：
+${mustJsonCompact(input.record)}`;
+
+  const trace: Record<string, unknown> = {
+    agent_id: THREE_LINE_AGENT_ID,
+    stage: 'shared_agent_three_line',
+    summary_text: summaryText,
+  };
+
+  // 内部直接调用「三线一单分区管控决策智能体」（B 方案，不走对外 API Key 链路）。
+  // 严格依赖该智能体自身配置（系统提示词、hbai-mcp 工具、模型）产出结果，不引入任何直连 LLM 降级。
+  const { text } = await runSharedAgent({
+    agentId: THREE_LINE_AGENT_ID,
+    prompt,
+    signal: input.signal,
+    userId: input.userId,
+    workspaceId: input.workspaceId,
+  });
+  trace.model_raw_response = text;
+
+  const parsed = extractThreeLineResult(text);
+  if (!parsed.status) {
+    throw new Error(
+      `三线一单分区管控智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`,
+    );
+  }
+  const description = parsed.result_description.trim();
   if (!description) throw new Error('三线一单分区管控判定结果缺少 result_description');
 
   const data: AdmissionDecisionOutput = {
-    map_preview_url: mapPreviewUrl,
+    map_preview_url: buildPreviewUrl(parsed.map_preview_url),
     result_description: description,
-    status,
+    status: normalizeAdmissionStatus(parsed.status),
   };
-  stage.trace.normalized_decision = data;
-  return { data, raw: mustJsonCompact(stage.trace) };
+  trace.normalized_decision = data;
+  return { data, raw: mustJsonCompact(trace) };
 };

@@ -28,7 +28,10 @@ import {
 } from './eia/state';
 import { normalizeSize, requireLobeSession, success, toPositiveInt, withClient } from './legacyDb';
 
-const AiEiaRoutes = new Hono<{ Variables: { authType?: string; userId: string } }>();
+// workspaceId 由上游鉴权中间件按需写入；共享智能体调用会透传，缺省为 undefined 亦可（按智能体自身 workspaceId 解析）
+const AiEiaRoutes = new Hono<{
+  Variables: { authType?: string; userId: string; workspaceId?: string };
+}>();
 
 const DEFAULT_PAGE = 1;
 
@@ -445,7 +448,14 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
       await persistRecord(id, userId, record);
       agentCode = AgentCode.industry;
       try {
-        const { data, raw } = await runIndustry({ record, signal, stepId, targetId });
+        const { data, raw } = await runIndustry({
+          record,
+          signal,
+          stepId,
+          targetId,
+          userId,
+          workspaceId: c.get('workspaceId'),
+        });
         rawResponse = raw;
         applyIndustryResult(record, data);
       } catch (error) {
@@ -458,7 +468,14 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
       await persistRecord(id, userId, record);
       agentCode = AgentCode.type;
       try {
-        const { data, raw } = await runType({ record, signal, stepId, targetId });
+        const { data, raw } = await runType({
+          record,
+          signal,
+          stepId,
+          targetId,
+          userId,
+          workspaceId: c.get('workspaceId'),
+        });
         rawResponse = raw;
         applyTypeResult(record, data);
       } catch (error) {
@@ -486,11 +503,26 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
               : targetId === 'spatial:acousticZone'
                 ? analyzeAcousticZone
                 : analyzeControlZone;
-          const { data, raw } = await runner({ record, signal, stepId, targetId });
+          // 三线一单走共享智能体（内部 B 方案），必须带上 userId / workspaceId
+          const { data, raw } = await runner({
+            record,
+            signal,
+            stepId,
+            targetId,
+            userId,
+            workspaceId: c.get('workspaceId'),
+          });
           rawResponse = raw;
           out = data;
         } else {
-          const result = await runAdmissionDecision({ record, signal, stepId, targetId });
+          const result = await runAdmissionDecision({
+            record,
+            signal,
+            stepId,
+            targetId,
+            userId,
+            workspaceId: c.get('workspaceId'),
+          });
           agentCode = result.agentCode;
           rawResponse = result.raw;
           out = result.data;
