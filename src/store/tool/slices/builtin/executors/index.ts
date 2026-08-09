@@ -25,6 +25,7 @@ import type { BuiltinToolContext, BuiltinToolResult, IBuiltinToolExecutor } from
 import { ampExecutor, claudeCodeExecutor, codexExecutor, openCodeExecutor } from './heteroCli';
 import { activatorExecutor } from './lobe-activator';
 import { agentDocumentsExecutor } from './lobe-agent-documents';
+import { archiveInfoExecutor } from './lobe-archive';
 import { messageExecutor } from './lobe-message';
 import { notebookExecutor } from './lobe-notebook';
 import { pageAgentExecutor } from './lobe-page-agent';
@@ -175,6 +176,7 @@ export const registerBuiltinToolExecutors = (): void => {
     skillsExecutor,
     taskExecutor,
     activatorExecutor,
+    archiveInfoExecutor,
     topicReferenceExecutor,
     userInteractionExecutor,
     lobeAgentExecutor,

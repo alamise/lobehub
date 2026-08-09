@@ -15,10 +15,6 @@ const parseArchiveId = (value: string): number | undefined => {
 
 export const archiveRuntime: ServerRuntimeRegistration = {
   factory: (context) => {
-    // 临时诊断：确认运行时是否真的拿到 businessContext（上次调研未决点）。
-    // 确认正常后移除本行。
-    console.error('[archive-runtime] factory invoked, businessContext=', context.businessContext);
-
     const businessContext = context.businessContext;
 
     return {
