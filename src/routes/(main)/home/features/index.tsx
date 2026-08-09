@@ -13,6 +13,7 @@ import {
   Landmark,
   type LucideIcon,
   Megaphone,
+  Settings2,
   Smartphone,
   User,
   Waves,
@@ -296,18 +297,40 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     background: #fff;
     box-shadow: 0 2px 10px rgb(15 23 42 / 5%);
   `,
-  settingsEntry: css`
+  settingsCard: css`
     cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
 
     padding-block: 6px;
     padding-inline: 12px;
-    border-radius: 8px;
+    border: 1px solid #dbe4ee;
+    border-radius: 999px;
 
-    transition: background 0.2s ease;
+    background: #f4f8fc;
+
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
 
     &:hover {
-      background: #f0f3f7;
+      border-color: #c3d4e6;
+      background: #e9f1f9;
     }
+  `,
+  adminBadge: css`
+    padding-block: 3px;
+    padding-inline: 8px;
+    border: 1px solid #bfe6cf;
+    border-radius: 999px;
+
+    font-size: 11px;
+    line-height: 1;
+    color: #2f7d54;
+    white-space: nowrap;
+
+    background: #e7f6ee;
   `,
 }));
 
@@ -449,16 +472,15 @@ const Home = memo(() => {
         </Flexbox>
         <Flexbox horizontal align="center" gap={24}>
           {isAdmin && (
-            <Flexbox horizontal align="center" gap={8}>
-              <WorkspaceLink className={styles.settingsEntry} to="/settings">
+            <WorkspaceLink className={styles.settingsCard} to="/settings">
+              <Flexbox horizontal align="center" gap={6}>
+                <Icon color="#3b6ea5" icon={Settings2} size={15} />
                 <Text color="#27364b" fontSize={14} weight={600}>
                   系统设置
                 </Text>
-              </WorkspaceLink>
-              <Text color="#9fb0c8" fontSize={12}>
-                仅管理员可见
-              </Text>
-            </Flexbox>
+                <span className={styles.adminBadge}>仅管理员可见</span>
+              </Flexbox>
+            </WorkspaceLink>
           )}
           <span style={{ display: 'inline-flex', position: 'relative' }}>
             <Icon color="#8da0b8" icon={Bell} size={22} />
