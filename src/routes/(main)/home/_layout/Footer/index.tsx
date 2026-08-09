@@ -16,7 +16,6 @@ import {
   MessageCircle,
   Rocket,
   Send,
-  Settings2,
   SettingsIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -314,18 +313,6 @@ const Footer = memo(() => {
     trackedMenuKeys: string[];
   }>(() => {
     const ownItems: FooterMenuItems = [
-      ...(footer.showSettingsEntry && !isDevMode
-        ? [
-            {
-              icon: <Icon icon={Settings2} />,
-              key: 'setting',
-              label: <WorkspaceLink to="/settings">{t(settingLabelKey)}</WorkspaceLink>,
-            },
-            {
-              type: 'divider' as const,
-            },
-          ]
-        : []),
       ...(enableBusinessFeatures
         ? [
             {
@@ -428,7 +415,6 @@ const Footer = memo(() => {
     };
   }, [
     trackMenuClick,
-    footer.showSettingsEntry,
     footer.layout,
     footer.hideGitHub,
     footer.showEvalEntry,
@@ -436,10 +422,8 @@ const Footer = memo(() => {
     handleOpenChangelogModal,
     handleOpenFeedbackModal,
     handleOpenProductHuntCard,
-    isDevMode,
     shouldShowProductHuntMenuEntry,
     t,
-    settingLabelKey,
     billboardMenuItems,
     isHomeSidebar,
   ]);

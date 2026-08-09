@@ -916,6 +916,14 @@ export const desktopRoutes: RouteObject[] = [
             element: redirectElement('/settings/credential'),
             path: 'creds',
           },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/settings'),
+              'Desktop > Settings > Agents',
+            ),
+            handle: { settingsTab: SettingsTabs.Agents },
+            path: 'agents',
+          },
           // Other settings tabs
           {
             element: dynamicElement(
