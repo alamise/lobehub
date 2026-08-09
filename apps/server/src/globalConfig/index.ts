@@ -101,6 +101,7 @@ export const getServerGlobalConfig = async () => {
     aiProvider: await genServerAiProvidersConfig(aiProviderSpecificConfig),
     businessAgent: cleanObject({
       archiveAgentId: process.env.LOBE_BUSINESS_ARCHIVE_AGENT_ID,
+      docFormatAgentId: process.env.LOBE_BUSINESS_DOC_FORMAT_AGENT_ID,
       enterpriseAgentId: process.env.LOBE_BUSINESS_ENTERPRISE_AGENT_ID,
     }),
     defaultAgent: {
