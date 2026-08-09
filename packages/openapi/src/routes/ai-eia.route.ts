@@ -503,7 +503,7 @@ AiEiaRoutes.post('/:id/analyze', async (c) => {
               : targetId === 'spatial:acousticZone'
                 ? analyzeAcousticZone
                 : analyzeControlZone;
-          // 三线一单走共享智能体（内部 B 方案），必须带上 userId / workspaceId
+          // 三线一单、饮用水水源保护区走共享智能体（内部 B 方案），必须带上 userId / workspaceId
           const { data, raw } = await runner({
             record,
             signal,

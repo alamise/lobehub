@@ -33,6 +33,18 @@ export const POLICY_AGENT_ID = 'agt_KxUrDah8bCJR';
  */
 export const THREE_LINE_AGENT_ID = 'agt_SHmqyDcCW67g';
 
+/**
+ * 「环评准入判定-饮用水水源保护区」决策智能体。
+ * 该智能体自身挂载 hbai-mcp 工具（geocode_address / check_water_protection_collision /
+ * search_law），由智能体自主完成 地址→坐标→水源保护区碰撞→法条依据 全链路后给出判定。
+ * 内部直接调用（B 方案），不走对外 HTTP API Key 链路。
+ *
+ * 智能体 ID 通过环境变量 LOBE_EIA_WATER_AGENT_ID 配置：
+ * 在 LobeHub 创建智能体后，把 ID 写入 /opt/program/lobehub/.env 并执行 docker compose up -d lobe 即可生效，
+ * 无需重新构建镜像。
+ */
+export const waterProtectionAgentId = () => (process.env.LOBE_EIA_WATER_AGENT_ID || '').trim();
+
 export const AgentCode = {
   admission: 'eia_assessment_admission',
   conclusion: 'eia_assessment_conclusion',

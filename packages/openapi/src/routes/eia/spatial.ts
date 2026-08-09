@@ -1,7 +1,11 @@
 /**
- * 空间冲突两阶段判定（地址抽取 → 高德地理编码 → 空间碰撞接口 → LLM 判定）。
- * 1:1 迁移自 legacy-go-project-monorepo backend/internal/service/
- *   eia_water_protection_service.go / eia_acoustic_zone_service.go / eia_control_zone_service.go
+ * 准入判定 - 空间冲突检测。
+ *
+ * 两种实现并存：
+ * - 三线一单分区管控 / 饮用水水源保护区：由共享智能体挂载 hbai-mcp 工具自主跑完整链路
+ *   （地址识别 → 地理编码 → 空间碰撞 → 政策/法条 → 判定），后端只组织输入与解析输出。
+ * - 声环境功能区划：仍为本地两阶段流水线（地址抽取 → 高德地理编码 → 空间碰撞接口 → LLM 判定），
+ *   1:1 迁移自 legacy-go-project-monorepo backend/internal/service/eia_acoustic_zone_service.go。
  */
 
 import { runSharedAgent } from './agentRunner';
@@ -13,6 +17,7 @@ import {
   runAdmissionDecision,
   THREE_LINE_AGENT_ID,
   type ToolCallTrace,
+  waterProtectionAgentId,
 } from './agents';
 import { extractJsonText, mustJsonCompact } from './llm';
 import { defaultSpatialMap, type WorkflowRecord } from './state';
@@ -344,78 +349,152 @@ const locationText = (address: string, coords: Coordinates) =>
   `${address}（坐标：经度${coords.longitude}，纬度${coords.latitude}）`;
 
 // ---------------------------------------------------------------------------
-// 饮用水保护区
+// 空间冲突检测：共享智能体公共逻辑
 // ---------------------------------------------------------------------------
+//
+// 三线一单、饮用水水源保护区两个维度均采用「智能体自主跑完整链路」的方案：
+// 智能体自身挂载 hbai-mcp 工具，后端只负责组织输入、调用智能体、容错解析其 JSON 输出，
+// 不做任何直连 LLM 降级（降级会绕开智能体配置，结果不可控）。
 
-const normalizeWaterProtectionStatus = (status: string) => {
-  const trimmed = (status || '').trim();
-  return ['判定通过', '判定不通过', '待补充信息', '受限准入'].includes(trimmed)
-    ? trimmed
-    : '待补充信息';
+/** 空间智能体输出的容错解析：
+ *  status / map_preview_url 结构固定；result_description 为长中文自由文本，
+ *  常夹带未转义的英文双引号导致整体 JSON 非法，故严格解析失败后逐字段抽取。 */
+const extractSpatialAgentResult = (
+  text: string,
+): { map_preview_url: string; result_description: string; status: string } => {
+  // 先剥掉 <think>、```json 代码块并截取到最外层花括号，
+  // 否则末尾字段的锚定正则会被代码块结束标记顶掉。
+  const cleaned = extractJsonText(text);
+  // 1) 严格解析优先（覆盖绝大多数正常返回）
+  try {
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    const status = String(parsed.status ?? '').trim();
+    if (status) {
+      return {
+        map_preview_url: String(parsed.map_preview_url ?? '').trim(),
+        result_description: String(parsed.result_description ?? '').trim(),
+        status,
+      };
+    }
+  } catch {
+    // 进入容错分支
+  }
+  // 2) 容错抽取（容忍 result_description 中的未转义英文双引号）
+  const status = cleaned.match(/"status"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
+  const mapPreviewUrl = cleaned.match(/"map_preview_url"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
+  let description =
+    cleaned
+      .match(/"result_description"\s*:\s*"([\s\S]*?)"\s*,\s*"(?:map_preview_url|status)"\s*:/)?.[1]
+      ?.trim() ?? '';
+  if (!description) {
+    description =
+      cleaned.match(/"result_description"\s*:\s*"([\s\S]*?)"\s*(?:\}\s*)?$/)?.[1]?.trim() ?? '';
+  }
+  return { map_preview_url: mapPreviewUrl, result_description: description, status };
 };
+
+/** 统一的空间维度共享智能体调用：拼装任务提示词 + 记录 → 调智能体 → 解析归一 */
+const runSpatialSharedAgent = async (options: {
+  agentId: string;
+  input: AnalyzeInput;
+  label: string;
+  stage: string;
+  taskPrompt: string;
+}): Promise<{ data: AdmissionDecisionOutput; raw: string }> => {
+  const { agentId, input, label, stage, taskPrompt } = options;
+  if (!agentId) {
+    throw new Error(`${label}判定未配置决策智能体 ID，请在环境变量中配置后重启服务`);
+  }
+  if (!input.userId) {
+    throw new Error(`${label}判定缺少用户标识，无法调用共享智能体`);
+  }
+
+  const summaryText = (input.record.steps.summary?.content || '').trim();
+  const prompt = `${taskPrompt}
+
+项目简要说明：
+${summaryText || '（暂无项目简要说明）'}
+
+环评判定记录：
+${mustJsonCompact(input.record)}`;
+
+  const trace: Record<string, unknown> = { agent_id: agentId, stage, summary_text: summaryText };
+
+  // 内部直接调用共享智能体（B 方案，不走对外 API Key 链路）。
+  // 严格依赖该智能体自身配置（系统提示词、hbai-mcp 工具、模型）产出结果，不引入任何直连 LLM 降级。
+  const { text } = await runSharedAgent({
+    agentId,
+    prompt,
+    signal: input.signal,
+    userId: input.userId,
+    workspaceId: input.workspaceId,
+  });
+  trace.model_raw_response = text;
+
+  const parsed = extractSpatialAgentResult(text);
+  if (!parsed.status) {
+    throw new Error(`${label}智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`);
+  }
+  const description = parsed.result_description.trim();
+  if (!description) throw new Error(`${label}判定结果缺少 result_description`);
+
+  const data: AdmissionDecisionOutput = {
+    map_preview_url: buildPreviewUrl(parsed.map_preview_url),
+    result_description: description,
+    status: normalizeAdmissionStatus(parsed.status),
+  };
+  trace.normalized_decision = data;
+  return { data, raw: mustJsonCompact(trace) };
+};
+
+// ---------------------------------------------------------------------------
+// 饮用水水源保护区（共享智能体 + hbai-mcp 工具链）
+// ---------------------------------------------------------------------------
+//
+// 整条链路（地址识别 → 高德地理编码 → 饮用水水源保护区碰撞检测 → 法条依据 → 准入判定）
+// 全部交由「环评准入判定-饮用水水源保护区」决策智能体自主完成，其挂载的 hbai-mcp 工具为：
+//   1. geocode_address                  地址 → 经纬度
+//   2. check_water_protection_collision 经纬度 → 水源保护区图斑碰撞结果（含 map_preview_url）
+//   3. search_law                       法律法规检索（可选，用于补充禁止性条款依据）
+
+const WATER_PROTECTION_TASK_PROMPT = `请完成「环评准入判定 - 空间冲突检测 - 饮用水水源保护区」判定。
+
+必须按以下顺序调用 hbai-mcp 工具，不得跳过、不得凭空编造数据：
+1. 从下方环评判定记录（重点看项目简要说明）中识别项目建设地点的完整中文地址，尽量包含省/市/区县与具体路段门牌。
+2. 调用 geocode_address(address) 获取经纬度；若 matched 为 false 或未拿到经纬度，直接返回 status 为“待补充信息”。
+3. 调用 check_water_protection_collision(longitude, latitude) 获取饮用水水源保护区碰撞结果。
+4. 命中保护区时，可调用 search_law 检索饮用水水源保护区的禁止性规定作为判定依据（如生态环境法典、水污染防治法中关于
+   一级保护区禁止新建改建扩建与供水设施和保护水源无关的建设项目、二级保护区排污口设置等条款）；未命中时跳过本步。
+5. 综合空间命中结果与法律依据给出准入判定。
+
+判定规则：
+1. 未获取到有效经纬度时，status 必须为“待补充信息”。
+2. in_protection_area 为 false（未命中任何饮用水水源保护区）时，status 必须为“判定通过”。
+3. 命中一级保护区（highest_level 为“一级保护区”）时，status 必须为“判定不通过”。
+4. 命中二级保护区、三级保护区、四级保护区、准保护区时，status 必须为“受限准入”。
+5. 不得自行推导保护区级别优先级，只能引用工具返回的原始文案表述。
+6. 只能基于工具返回内容作答，严禁虚构未返回的水源保护区信息或法律条文。
+
+输出要求：
+1. 只输出一个 JSON 对象，不要输出任何解释性文字、Markdown 代码块标记或思考过程。
+2. JSON 结构固定为：{"status": string, "result_description": string, "map_preview_url": string}。
+3. status 只能取“判定通过 / 判定不通过 / 受限准入 / 待补充信息”四个中文值之一，禁止使用 approved、rejected 等英文值。
+4. result_description 必须写明解析出的项目地址与经纬度、是否命中、命中的水源保护区名称与保护级别，
+   命中时还需给出对应的管控要求或法律依据，禁止只给结论。
+5. map_preview_url 必须原样透传 check_water_protection_collision 返回的 map_preview_url，不得省略、改写或置空；工具未返回时填空字符串。
+6. result_description 为自由文本，若需引用文件或条文名称请一律使用中文引号“”；
+   严禁在 JSON 字符串值中使用未转义的英文双引号 "，否则会破坏 JSON 结构导致解析失败。`;
 
 export const analyzeWaterProtection = async (
   input: AnalyzeInput,
-): Promise<{ data: AdmissionDecisionOutput; raw: string }> => {
-  const stage = await runStageOne(input, 'waterProtection', {
-    description: '水资源保护区空间碰撞接口',
-    domain: '饮用水保护区',
-    errorLabel: '水保护区接口',
-    toolName: 'water_protection_collision_check',
+): Promise<{ data: AdmissionDecisionOutput; raw: string }> =>
+  runSpatialSharedAgent({
+    agentId: waterProtectionAgentId(),
+    input,
+    label: '饮用水水源保护区',
+    stage: 'shared_agent_water_protection',
+    taskPrompt: WATER_PROTECTION_TASK_PROMPT,
   });
-  if (stage.fallback) return { data: stage.fallback, raw: mustJsonCompact(stage.trace) };
-
-  const collision = stage.collision!;
-  const coords = stage.coords!;
-  const address = stage.address!;
-  const payload = {
-    coordinates: coords,
-    decision_rules: [
-      '未获取到有效经纬度时，status 必须为“待补充信息”。',
-      '命中一级饮用水保护区时，status 必须为“判定不通过”。',
-      '命中二级保护区、三级保护区、四级保护区、准保护区时，status 必须为“受限准入”。',
-      '未命中任何饮用水保护区时，status 必须为“判定通过”。',
-    ],
-    project_address: address,
-    spatial_collision: collision,
-    special_conditions: [
-      '只能基于输入的地址解析结果和空间碰撞接口结果作答，不得虚构未返回的保护区信息。',
-      'result_description 必须写清命中情况、保护区等级、项目坐标及对应管控结论。',
-      'map_preview_url 必须原样透传输入中的 spatial_collision.map_preview_url，不得省略、改写或置空。',
-    ],
-    target_label: '空间冲突检测-饮用水保护区',
-  };
-  stage.trace.decision_payload = payload;
-
-  const decision = await runAdmissionDecision({
-    ...input,
-    knowledgeContext: `以下为饮用水保护区两阶段判定的固定输入，请严格按规则生成结构化结论：\n${mustJsonCompact(payload)}`,
-    record: withSpatialNote(input.record, 'waterProtection', payload),
-  });
-  stage.trace.model_raw_response = decision.raw;
-
-  const status = normalizeWaterProtectionStatus(decision.data.status);
-  const level = (collision.highest_level || '').trim();
-  let description = decision.data.result_description.trim();
-  if (status === '判定通过') {
-    description = `项目地址${locationText(address, coords)}未命中饮用水保护区。`;
-  } else if (status === '判定不通过') {
-    description = `项目地址${locationText(address, coords)}命中${level || '饮用水保护区'}，存在空间冲突。`;
-  } else if (status === '受限准入') {
-    description = `项目地址${locationText(address, coords)}命中${level || '饮用水保护区'}，需进一步核实准入要求。`;
-  }
-  const mapPreviewUrl =
-    buildPreviewUrl(decision.data.map_preview_url) || buildPreviewUrl(collision.map_preview_url);
-  if (!description) throw new Error('饮用水保护区判定结果缺少 result_description');
-
-  const data: AdmissionDecisionOutput = {
-    map_preview_url: mapPreviewUrl,
-    result_description: description,
-    status,
-  };
-  stage.trace.normalized_decision = data;
-  return { data, raw: mustJsonCompact(stage.trace) };
-};
 
 // ---------------------------------------------------------------------------
 // 声环境功能区划
@@ -491,50 +570,13 @@ export const analyzeAcousticZone = async (
 // 三线一单分区管控（共享智能体 + hbai-mcp 工具链）
 // ---------------------------------------------------------------------------
 //
-// 与饮用水源保护区 / 声环境功能区的两阶段本地流水线不同，三线一单整条链路
+// 与声环境功能区的两阶段本地流水线不同，三线一单整条链路
 // （地址识别 → 高德地理编码 → 空间碰撞检测 → 生态环境管控单元政策库关联 → 准入判定）
 // 全部交由「环评准入判定-三线一单分区管控」决策智能体自主完成，其挂载的 hbai-mcp 工具为：
 //   1. geocode_address              地址 → 经纬度
 //   2. check_control_zone_collision 经纬度 → 三线一单图斑碰撞结果（含 map_preview_url）
 //   3. lookup_control_policy        管控单元编码 → 区域管控政策条文
 // 后端只负责组织输入、调用智能体、容错解析其 JSON 输出，不做任何直连 LLM 降级。
-
-/** 三线一单智能体输出的容错解析：
- *  status / map_preview_url 结构固定；result_description 为长中文自由文本，
- *  常夹带未转义的英文双引号导致整体 JSON 非法，故严格解析失败后逐字段抽取。 */
-const extractThreeLineResult = (
-  text: string,
-): { map_preview_url: string; result_description: string; status: string } => {
-  // 先剥掉 <think>、```json 代码块并截取到最外层花括号，
-  // 否则末尾字段的锚定正则会被代码块结束标记顶掉。
-  const cleaned = extractJsonText(text);
-  // 1) 严格解析优先（覆盖绝大多数正常返回）
-  try {
-    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
-    const status = String(parsed.status ?? '').trim();
-    if (status) {
-      return {
-        map_preview_url: String(parsed.map_preview_url ?? '').trim(),
-        result_description: String(parsed.result_description ?? '').trim(),
-        status,
-      };
-    }
-  } catch {
-    // 进入容错分支
-  }
-  // 2) 容错抽取（容忍 result_description 中的未转义英文双引号）
-  const status = cleaned.match(/"status"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
-  const mapPreviewUrl = cleaned.match(/"map_preview_url"\s*:\s*"([^"]*)"/)?.[1]?.trim() ?? '';
-  let description =
-    cleaned
-      .match(/"result_description"\s*:\s*"([\s\S]*?)"\s*,\s*"(?:map_preview_url|status)"\s*:/)?.[1]
-      ?.trim() ?? '';
-  if (!description) {
-    description =
-      cleaned.match(/"result_description"\s*:\s*"([\s\S]*?)"\s*(?:\}\s*)?$/)?.[1]?.trim() ?? '';
-  }
-  return { map_preview_url: mapPreviewUrl, result_description: description, status };
-};
 
 /** 交给智能体的固定任务说明（智能体自身系统提示词负责角色与工具调用细则，此处只下达本次任务约束） */
 const THREE_LINE_TASK_PROMPT = `请完成「环评准入判定 - 空间冲突检测 - 三线一单分区管控」判定。
@@ -567,51 +609,11 @@ const THREE_LINE_TASK_PROMPT = `请完成「环评准入判定 - 空间冲突检
 
 export const analyzeControlZone = async (
   input: AnalyzeInput,
-): Promise<{ data: AdmissionDecisionOutput; raw: string }> => {
-  if (!input.userId) {
-    throw new Error('三线一单分区管控判定缺少用户标识，无法调用共享智能体');
-  }
-
-  const summaryText = (input.record.steps.summary?.content || '').trim();
-  const prompt = `${THREE_LINE_TASK_PROMPT}
-
-项目简要说明：
-${summaryText || '（暂无项目简要说明）'}
-
-环评判定记录：
-${mustJsonCompact(input.record)}`;
-
-  const trace: Record<string, unknown> = {
-    agent_id: THREE_LINE_AGENT_ID,
-    stage: 'shared_agent_three_line',
-    summary_text: summaryText,
-  };
-
-  // 内部直接调用「三线一单分区管控决策智能体」（B 方案，不走对外 API Key 链路）。
-  // 严格依赖该智能体自身配置（系统提示词、hbai-mcp 工具、模型）产出结果，不引入任何直连 LLM 降级。
-  const { text } = await runSharedAgent({
+): Promise<{ data: AdmissionDecisionOutput; raw: string }> =>
+  runSpatialSharedAgent({
     agentId: THREE_LINE_AGENT_ID,
-    prompt,
-    signal: input.signal,
-    userId: input.userId,
-    workspaceId: input.workspaceId,
+    input,
+    label: '三线一单分区管控',
+    stage: 'shared_agent_three_line',
+    taskPrompt: THREE_LINE_TASK_PROMPT,
   });
-  trace.model_raw_response = text;
-
-  const parsed = extractThreeLineResult(text);
-  if (!parsed.status) {
-    throw new Error(
-      `三线一单分区管控智能体未返回合法 JSON，原始回答前 200 字：${text.slice(0, 200)}`,
-    );
-  }
-  const description = parsed.result_description.trim();
-  if (!description) throw new Error('三线一单分区管控判定结果缺少 result_description');
-
-  const data: AdmissionDecisionOutput = {
-    map_preview_url: buildPreviewUrl(parsed.map_preview_url),
-    result_description: description,
-    status: normalizeAdmissionStatus(parsed.status),
-  };
-  trace.normalized_decision = data;
-  return { data, raw: mustJsonCompact(trace) };
-};
