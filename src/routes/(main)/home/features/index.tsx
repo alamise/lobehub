@@ -40,6 +40,11 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     border-radius: 50%;
 
     background: #e8f7f3;
+
+    @media (width <= 640px) {
+      width: 36px;
+      height: 36px;
+    }
   `,
   assistantHeader: css`
     display: flex;
@@ -53,12 +58,30 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     color: #fff;
 
     background: linear-gradient(90deg, #19c186 0%, #0a9e58 100%);
+
+    @media (width <= 720px) {
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-start;
+
+      padding-block: 18px;
+      padding-inline: 18px;
+      border-radius: 16px 16px 0 0;
+    }
   `,
   assistantPanel: css`
     overflow: hidden;
     border-radius: 20px;
     background: #fff;
     box-shadow: 0 18px 40px rgb(15 23 42 / 8%);
+
+    @media (width <= 720px) {
+      border-radius: 16px;
+    }
+
+    @media (width <= 640px) {
+      display: none;
+    }
   `,
   bubbleAi: css`
     max-width: min(520px, 72%);
@@ -73,6 +96,13 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     background: #fff;
     box-shadow: 0 6px 14px rgb(15 23 42 / 6%);
+
+    @media (width <= 640px) {
+      max-width: calc(100% - 48px);
+      padding-block: 14px;
+      padding-inline: 16px;
+      font-size: 14px;
+    }
   `,
   bubbleUser: css`
     max-width: min(360px, 72%);
@@ -85,6 +115,13 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     color: #fff;
 
     background: #08a373;
+
+    @media (width <= 640px) {
+      max-width: calc(100% - 48px);
+      padding-block: 14px;
+      padding-inline: 16px;
+      font-size: 14px;
+    }
   `,
   card: css`
     cursor: pointer;
@@ -111,6 +148,13 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       border-color: #ccefe3;
       box-shadow: 0 18px 38px rgb(8 163 115 / 12%);
     }
+
+    @media (width <= 720px) {
+      min-height: 148px;
+      padding-block: 22px;
+      padding-inline: 16px;
+      border-radius: 14px;
+    }
   `,
   cardGrid: css`
     display: grid;
@@ -123,6 +167,18 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     }
 
     @media (width <= 720px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+
+      max-width: none;
+      padding: 18px;
+      border-radius: 24px;
+
+      background: #fff;
+      box-shadow: 0 10px 26px rgb(15 23 42 / 5%);
+    }
+
+    @media (width <= 360px) {
       grid-template-columns: 1fr;
     }
   `,
@@ -134,6 +190,201 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     border-radius: 16px;
 
     box-shadow: 0 10px 22px rgb(15 23 42 / 14%);
+
+    @media (width <= 720px) {
+      width: 56px;
+      height: 56px;
+      margin-block-end: 14px;
+      border-radius: 14px;
+    }
+  `,
+  assistantConversation: css`
+    min-height: 420px;
+    padding-block: 30px 54px;
+    padding-inline: 32px;
+
+    @media (width <= 720px) {
+      gap: 34px !important;
+      min-height: 0;
+      padding-block: 20px 28px;
+      padding-inline: 16px;
+    }
+  `,
+  heroImageButton: css`
+    cursor: pointer;
+
+    flex: 0 0 300px;
+    align-self: stretch;
+
+    padding: 0;
+    border: 0;
+
+    background: transparent;
+
+    @media (width <= 980px) {
+      flex: 0 0 auto;
+      align-self: center;
+      width: min(280px, 72vw);
+    }
+
+    @media (width <= 640px) {
+      display: none;
+    }
+  `,
+  heroImage: css`
+    display: block;
+
+    width: 100%;
+    height: 350px;
+    margin-inline: auto;
+
+    object-fit: contain;
+
+    @media (width <= 980px) {
+      height: 260px;
+    }
+
+    @media (width <= 520px) {
+      height: 210px;
+    }
+  `,
+  heroRow: css`
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    @media (width <= 980px) {
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    @media (width <= 640px) {
+      gap: 18px;
+    }
+  `,
+  heroIntro: css`
+    @media (width <= 640px) {
+      padding-block: 24px;
+      padding-inline: 18px;
+      border-radius: 22px;
+
+      text-align: center;
+
+      background: #fff;
+      box-shadow: 0 8px 22px rgb(15 23 42 / 5%);
+    }
+  `,
+  heroSubtitle: css`
+    margin-block: 18px 0;
+    margin-inline: 0;
+
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.7;
+    color: #526176;
+
+    @media (width <= 640px) {
+      margin-block-start: 12px;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+  `,
+  heroTitle: css`
+    margin: 0;
+
+    font-size: clamp(42px, 4vw, 58px);
+    font-weight: 900;
+    line-height: 1.08;
+    color: transparent;
+    letter-spacing: 0;
+
+    background: linear-gradient(90deg, #097f68 0%, #13a760 52%, #0097bd 100%);
+    background-clip: text;
+
+    @media (width <= 640px) {
+      font-size: 32px;
+      line-height: 1.18;
+    }
+  `,
+  mobileAssistantBanner: css`
+    display: none;
+
+    @media (width <= 640px) {
+      position: relative;
+
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 132px;
+      gap: 12px;
+
+      margin-block-start: 18px;
+      padding-block: 20px;
+      padding-inline: 18px;
+      border-radius: 24px;
+
+      color: #fff;
+
+      background:
+        radial-gradient(circle at 76% 42%, rgb(255 255 255 / 23%), transparent 28%),
+        linear-gradient(135deg, #09a978 0%, #0797b8 100%);
+      box-shadow: 0 18px 34px rgb(9 151 184 / 18%);
+    }
+  `,
+  mobileAssistantImage: css`
+    align-self: center;
+
+    width: 128px;
+    height: 122px;
+    padding: 6px;
+    border: 1px solid rgb(255 255 255 / 35%);
+    border-radius: 22px;
+
+    object-fit: contain;
+    background: rgb(255 255 255 / 18%);
+  `,
+  mobileAssistantLabel: css`
+    display: inline-flex;
+
+    width: fit-content;
+    margin-block-end: 16px;
+    padding-block: 4px;
+    padding-inline: 14px;
+    border: 1px solid rgb(255 255 255 / 35%);
+    border-radius: 999px;
+
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 2px;
+
+    background: rgb(255 255 255 / 16%);
+  `,
+  mobileAssistantTitle: css`
+    margin: 0;
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.18;
+  `,
+  mobileAssistantText: css`
+    margin-block: 12px 18px;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.5;
+  `,
+  mobileAssistantButton: css`
+    cursor: pointer;
+
+    padding-block: 8px;
+    padding-inline: 18px;
+    border: 0;
+    border-radius: 999px;
+
+    font-size: 15px;
+    font-weight: 900;
+    color: #078a68;
+
+    background: #fff;
   `,
   metricBars: css`
     display: flex;
@@ -173,6 +424,12 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       border-color: #bce9d8;
       box-shadow: 0 16px 34px rgb(8 163 115 / 10%);
     }
+
+    @media (width <= 680px) {
+      min-height: 140px;
+      padding-block: 20px;
+      padding-inline: 18px;
+    }
   `,
   metricGrid: css`
     display: grid;
@@ -210,6 +467,10 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   metricSection: css`
     margin-block-start: 54px;
     padding-block: 0 20px;
+
+    @media (width <= 680px) {
+      margin-block-start: 34px;
+    }
   `,
   metricSubtitle: css`
     margin-block: 10px 28px;
@@ -237,6 +498,10 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     gap: 18px;
     align-items: flex-start;
     justify-content: space-between;
+
+    @media (width <= 420px) {
+      gap: 12px;
+    }
   `,
   metricValue: css`
     font-size: 56px;
@@ -262,6 +527,11 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       padding-block: 24px 40px;
       padding-inline: 18px;
     }
+
+    @media (width <= 520px) {
+      padding-block: 14px 28px;
+      padding-inline: 10px;
+    }
   `,
   stage: css`
     position: relative;
@@ -283,6 +553,13 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       padding-inline: 22px;
       border-radius: 22px;
     }
+
+    @media (width <= 520px) {
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
   `,
   topbar: css`
     display: flex;
@@ -296,6 +573,19 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     background: #fff;
     box-shadow: 0 2px 10px rgb(15 23 42 / 5%);
+
+    @media (width <= 860px) {
+      gap: 12px;
+
+      height: auto;
+      min-height: 58px;
+      padding-block: 10px;
+      padding-inline: 16px;
+    }
+
+    @media (width <= 640px) {
+      display: none;
+    }
   `,
   settingsCard: css`
     cursor: pointer;
@@ -507,32 +797,11 @@ const Home = memo(() => {
 
       <main className={styles.shell}>
         <section className={styles.stage}>
-          <Flexbox horizontal align="flex-start" gap={32} justify="space-between">
+          <div className={styles.heroRow}>
             <Flexbox flex={1} gap={34} style={{ minWidth: 0 }}>
-              <div>
-                <h1
-                  style={{
-                    background: 'linear-gradient(90deg, #097f68 0%, #13a760 52%, #0097bd 100%)',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
-                    fontSize: 'clamp(42px, 4vw, 58px)',
-                    fontWeight: 900,
-                    letterSpacing: 0,
-                    lineHeight: 1.08,
-                    margin: 0,
-                  }}
-                >
-                  智慧环保 AI驱动未来
-                </h1>
-                <p
-                  style={{
-                    color: '#526176',
-                    fontSize: 20,
-                    fontWeight: 700,
-                    lineHeight: 1.7,
-                    margin: '18px 0 0',
-                  }}
-                >
+              <div className={styles.heroIntro}>
+                <h1 className={styles.heroTitle}>智慧环保 AI驱动未来</h1>
+                <p className={styles.heroSubtitle}>
                   以数据为基、以模型为核、以场景为翼 推进生态环境治理现代化
                 </p>
               </div>
@@ -573,30 +842,37 @@ const Home = memo(() => {
 
             <button
               aria-label="进入AI数字人"
+              className={styles.heroImageButton}
               type="button"
-              style={{
-                alignSelf: 'stretch',
-                background: 'transparent',
-                border: 0,
-                cursor: 'pointer',
-                flex: '0 0 300px',
-                padding: 0,
-              }}
               onClick={() => navigate(SHARED_AGENT_PATH)}
             >
               <img
                 alt="环保数字人"
+                className={styles.heroImage}
                 src="/hangxiaohuan-character.png"
-                style={{
-                  display: 'block',
-                  height: 350,
-                  marginInline: 'auto',
-                  objectFit: 'contain',
-                  width: '100%',
-                }}
               />
             </button>
-          </Flexbox>
+          </div>
+
+          <section className={styles.mobileAssistantBanner}>
+            <div>
+              <span className={styles.mobileAssistantLabel}>AI 助手</span>
+              <h2 className={styles.mobileAssistantTitle}>数字人问答</h2>
+              <p className={styles.mobileAssistantText}>点击进入，直接发起文本或语音提问</p>
+              <button
+                className={styles.mobileAssistantButton}
+                type="button"
+                onClick={() => navigate(SHARED_AGENT_PATH)}
+              >
+                立即进入
+              </button>
+            </div>
+            <img
+              alt="余小环数字人"
+              className={styles.mobileAssistantImage}
+              src="/hangxiaohuan-character.png"
+            />
+          </section>
 
           <section className={styles.assistantPanel} style={{ marginTop: 34 }}>
             <div className={styles.assistantHeader}>
@@ -632,7 +908,7 @@ const Home = memo(() => {
               </Button>
             </div>
 
-            <Flexbox gap={78} style={{ minHeight: 420, padding: '30px 32px 54px' }}>
+            <Flexbox className={styles.assistantConversation} gap={78}>
               <Flexbox horizontal align="center" gap={18}>
                 <img alt="AI数字人" className={styles.assistantAvatar} src="/avatar.png" />
                 <div className={styles.bubbleAi}>

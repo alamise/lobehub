@@ -53,6 +53,12 @@ const styles = createStaticStyles(({ css }) => ({
       color: #35d39f;
       background: rgb(16 185 129 / 10%);
     }
+
+    @media (width <= 768px) {
+      min-height: 40px;
+      padding-inline: 42px 10px;
+      font-size: 13px;
+    }
   `,
   groupChildren: css`
     display: flex;
@@ -96,6 +102,12 @@ const styles = createStaticStyles(({ css }) => ({
       background: #0b9f70;
       box-shadow: 0 10px 22px rgb(0 0 0 / 14%);
     }
+
+    @media (width <= 768px) {
+      min-height: 42px;
+      padding-inline: 12px;
+      border-radius: 10px;
+    }
   `,
   nav: css`
     display: flex;
@@ -108,6 +120,12 @@ const styles = createStaticStyles(({ css }) => ({
     padding-inline: 18px;
 
     background: #0f1b2d;
+
+    @media (width <= 768px) {
+      gap: 8px;
+      padding-block: 18px;
+      padding-inline: 12px;
+    }
   `,
   rowIcon: css`
     flex: none;
@@ -139,6 +157,7 @@ const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
     const { pathname } = useLocation();
     const navigate = useWorkspaceAwareNavigate();
     const active = isActivePath(pathname, item.path);
+    const handleClick = item.path ? () => navigate(item.path as string) : undefined;
 
     if (nested) {
       return (
@@ -147,7 +166,7 @@ const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
           data-active={active}
           title={item.title}
           type="button"
-          onClick={item.path ? () => navigate(item.path) : undefined}
+          onClick={handleClick}
         >
           {item.title}
         </button>
@@ -162,7 +181,7 @@ const BusinessMenuLeaf = memo<{ item: BusinessNavLeafItem; nested?: boolean }>(
         data-active={active}
         title={item.title}
         type="button"
-        onClick={item.path ? () => navigate(item.path) : undefined}
+        onClick={handleClick}
       >
         <Flexbox horizontal align="center" gap={12} style={{ minWidth: 0 }}>
           {ItemIcon && (

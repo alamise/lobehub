@@ -155,132 +155,210 @@ const BusinessEiaPage = memo(() => {
           </div>
         </div>
 
-        <div
-          style={{
-            background: C.white,
-            border: `1px solid ${C.slate200}`,
-            borderRadius: 12,
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}>
-            <table
-              style={{ borderCollapse: 'collapse', fontSize: 14, minWidth: '100%', width: '100%' }}
-            >
-              <colgroup>
-                <col style={{ width: 220 }} />
-                <col />
-                <col style={{ width: 140 }} />
-                <col style={{ width: 200 }} />
-              </colgroup>
-              <thead style={{ background: C.slate50, position: 'sticky', top: 0, zIndex: 10 }}>
-                <tr>
-                  <th style={thStyle}>时间</th>
-                  <th style={thStyle}>建设内容</th>
-                  <th style={thStyle}>状态</th>
-                  <th style={thStyle}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+        <div className="business-desktop-only">
+          <div
+            style={{
+              background: C.white,
+              border: `1px solid ${C.slate200}`,
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}>
+              <table
+                style={{
+                  borderCollapse: 'collapse',
+                  fontSize: 14,
+                  minWidth: '100%',
+                  width: '100%',
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: 220 }} />
+                  <col />
+                  <col style={{ width: 140 }} />
+                  <col style={{ width: 200 }} />
+                </colgroup>
+                <thead style={{ background: C.slate50, position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
-                    <td
-                      colSpan={4}
-                      style={{
-                        ...tdStyle,
-                        color: C.slate500,
-                        padding: '40px 16px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      正在加载记录...
-                    </td>
+                    <th style={thStyle}>时间</th>
+                    <th style={thStyle}>建设内容</th>
+                    <th style={thStyle}>状态</th>
+                    <th style={thStyle}>操作</th>
                   </tr>
-                ) : filteredRecords.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      style={{
-                        ...tdStyle,
-                        color: C.slate500,
-                        padding: '40px 16px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      暂无记录。新增环评判定并生成结果后，会自动沉淀到这里。
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecords.map((record) => (
-                    <tr key={record.id}>
-                      <td style={{ ...tdStyle, color: C.slate600, whiteSpace: 'nowrap' }}>
-                        {new Date(record.updatedAt).toLocaleString('zh-CN')}
-                      </td>
-                      <td style={{ ...tdStyle, color: C.slate700, maxWidth: 0 }}>
-                        <div
-                          style={{
-                            display: '-webkit-box',
-                            lineHeight: '24px',
-                            overflow: 'hidden',
-                            WebkitBoxOrient: 'vertical',
-                            WebkitLineClamp: 2,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-all',
-                          }}
-                        >
-                          {record.steps.summary.content || '—'}
-                        </div>
-                      </td>
-                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            background: record.completed ? C.emerald50 : C.amber50,
-                            borderRadius: 9999,
-                            color: record.completed ? C.emerald700 : C.amber700,
-                            display: 'inline-flex',
-                            fontSize: 12,
-                            fontWeight: 500,
-                            padding: '4px 10px',
-                          }}
-                        >
-                          {record.completed ? '已完成' : '未完成'}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {record.completed ? (
-                            <Button
-                              size="small"
-                              onClick={() => navigate(getAssessmentRecordRoute(record))}
-                            >
-                              查看详情
-                            </Button>
-                          ) : (
-                            <Button
-                              size="small"
-                              style={{ background: C.emerald600 }}
-                              type="primary"
-                              onClick={() => navigate(getAssessmentRecordRoute(record))}
-                            >
-                              继续判定
-                            </Button>
-                          )}
-                          <Button
-                            disabled={deletingRecordId === record.id}
-                            icon={<Trash2 size={14} />}
-                            size="small"
-                            style={roseOutlineBtn}
-                            onClick={() => void handleDeleteRecord(record)}
-                          >
-                            {deletingRecordId === record.id ? '删除中...' : '删除'}
-                          </Button>
-                        </div>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        style={{
+                          ...tdStyle,
+                          color: C.slate500,
+                          padding: '40px 16px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        正在加载记录...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredRecords.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        style={{
+                          ...tdStyle,
+                          color: C.slate500,
+                          padding: '40px 16px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        暂无记录。新增环评判定并生成结果后，会自动沉淀到这里。
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRecords.map((record) => (
+                      <tr key={record.id}>
+                        <td style={{ ...tdStyle, color: C.slate600, whiteSpace: 'nowrap' }}>
+                          {new Date(record.updatedAt).toLocaleString('zh-CN')}
+                        </td>
+                        <td style={{ ...tdStyle, color: C.slate700, maxWidth: 0 }}>
+                          <div
+                            style={{
+                              display: '-webkit-box',
+                              lineHeight: '24px',
+                              overflow: 'hidden',
+                              WebkitBoxOrient: 'vertical',
+                              WebkitLineClamp: 2,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {record.steps.summary.content || '—'}
+                          </div>
+                        </td>
+                        <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                          <span
+                            style={{
+                              background: record.completed ? C.emerald50 : C.amber50,
+                              borderRadius: 9999,
+                              color: record.completed ? C.emerald700 : C.amber700,
+                              display: 'inline-flex',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              padding: '4px 10px',
+                            }}
+                          >
+                            {record.completed ? '已完成' : '未完成'}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {record.completed ? (
+                              <Button
+                                size="small"
+                                onClick={() => navigate(getAssessmentRecordRoute(record))}
+                              >
+                                查看详情
+                              </Button>
+                            ) : (
+                              <Button
+                                size="small"
+                                style={{ background: C.emerald600 }}
+                                type="primary"
+                                onClick={() => navigate(getAssessmentRecordRoute(record))}
+                              >
+                                继续判定
+                              </Button>
+                            )}
+                            <Button
+                              disabled={deletingRecordId === record.id}
+                              icon={<Trash2 size={14} />}
+                              size="small"
+                              style={roseOutlineBtn}
+                              onClick={() => void handleDeleteRecord(record)}
+                            >
+                              {deletingRecordId === record.id ? '删除中...' : '删除'}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="business-mobile-only">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {loading ? (
+              <div className="rounded-xl border border-slate-100 bg-white p-4 text-center text-sm text-slate-500">
+                正在加载记录...
+              </div>
+            ) : filteredRecords.length === 0 ? (
+              <div className="rounded-xl border border-slate-100 bg-white p-4 text-center text-sm text-slate-500">
+                暂无记录。新增环评判定并生成结果后，会自动沉淀到这里。
+              </div>
+            ) : (
+              filteredRecords.map((record) => (
+                <div
+                  className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+                  key={record.id}
+                >
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+                    <span style={{ color: C.slate500, fontSize: 12 }}>
+                      {new Date(record.updatedAt).toLocaleString('zh-CN')}
+                    </span>
+                    <span
+                      style={{
+                        background: record.completed ? C.emerald50 : C.amber50,
+                        borderRadius: 9999,
+                        color: record.completed ? C.emerald700 : C.amber700,
+                        display: 'inline-flex',
+                        flex: 'none',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        padding: '4px 10px',
+                      }}
+                    >
+                      {record.completed ? '已完成' : '未完成'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: C.slate700,
+                      lineHeight: '22px',
+                      marginTop: 10,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {record.steps.summary.content || '—'}
+                  </div>
+                  <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
+                    <Button
+                      size="small"
+                      style={record.completed ? undefined : { background: C.emerald600 }}
+                      type={record.completed ? 'default' : 'primary'}
+                      onClick={() => navigate(getAssessmentRecordRoute(record))}
+                    >
+                      {record.completed ? '查看详情' : '继续判定'}
+                    </Button>
+                    <Button
+                      disabled={deletingRecordId === record.id}
+                      icon={<Trash2 size={14} />}
+                      size="small"
+                      style={roseOutlineBtn}
+                      onClick={() => void handleDeleteRecord(record)}
+                    >
+                      {deletingRecordId === record.id ? '删除中...' : '删除'}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

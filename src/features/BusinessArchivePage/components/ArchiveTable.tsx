@@ -1,5 +1,6 @@
-import { Button, Table, Tag, Tooltip, Typography } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
+import { Button } from '@lobehub/ui/base-ui';
+import { Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { memo } from 'react';
 
@@ -15,7 +16,8 @@ interface Props {
   sortOrder: 'asc' | 'desc';
 }
 
-const toAntdOrder = (order: 'asc' | 'desc') => (order === 'asc' ? ('ascend' as const) : ('descend' as const));
+const toAntdOrder = (order: 'asc' | 'desc') =>
+  order === 'asc' ? ('ascend' as const) : ('descend' as const);
 
 export const ArchiveTable = memo<Props>(
   ({ archives, loading, onDetail, onSortChange, sortField, sortOrder }) => {
@@ -77,7 +79,12 @@ export const ArchiveTable = memo<Props>(
         width: 90,
         render: (_, row) => (
           <Tooltip title="查看详情">
-            <Button icon={<EyeOutlined />} onClick={() => onDetail(row.id)} size="small" type="link">
+            <Button
+              icon={<EyeOutlined />}
+              size="small"
+              type="link"
+              onClick={() => onDetail(row.id)}
+            >
               详情
             </Button>
           </Tooltip>
@@ -96,16 +103,75 @@ export const ArchiveTable = memo<Props>(
     };
 
     return (
-      <Table<AiArchiveItem>
-        columns={columns}
-        dataSource={archives}
-        loading={loading}
-        onChange={handleChange}
-        pagination={false}
-        rowKey="id"
-        scroll={{ x: 880 }}
-        size="middle"
-      />
+      <>
+        <div className="business-desktop-only">
+          <Table<AiArchiveItem>
+            columns={columns}
+            dataSource={archives}
+            loading={loading}
+            pagination={false}
+            rowKey="id"
+            scroll={{ x: 880 }}
+            size="middle"
+            onChange={handleChange}
+          />
+        </div>
+        <div className="business-mobile-only">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {loading ? (
+              <div className="rounded-xl border border-slate-100 bg-white p-4 text-center text-sm text-slate-500">
+                正在加载档案...
+              </div>
+            ) : archives.length === 0 ? (
+              <div className="rounded-xl border border-slate-100 bg-white p-4 text-center text-sm text-slate-500">
+                暂无档案记录
+              </div>
+            ) : (
+              archives.map((archive) => (
+                <div
+                  className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+                  key={archive.id}
+                  role="button"
+                  style={{ cursor: 'pointer', textAlign: 'left' }}
+                  tabIndex={0}
+                  onClick={() => onDetail(archive.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') onDetail(archive.id);
+                  }}
+                >
+                  <Typography.Text strong style={{ display: 'block', fontSize: 15 }}>
+                    {archive.title || '无标题档案'}
+                  </Typography.Text>
+                  <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+                    <Typography.Text type="secondary">
+                      文件编号：{archive.doc_no || '—'}
+                    </Typography.Text>
+                    <Typography.Text type="secondary">年度：{archive.year || '—'}</Typography.Text>
+                    <Typography.Text type="secondary">
+                      页数：{archive.page_count || 0}
+                    </Typography.Text>
+                    <span>
+                      {archive.category_code ? (
+                        <Tag>
+                          {archive.category_code}
+                          {archive.category_name ? ` ${archive.category_name}` : ''}
+                        </Tag>
+                      ) : (
+                        <Tag>未分类</Tag>
+                      )}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <Button icon={<EyeOutlined />} size="small" type="primary">
+                      查看详情
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </>
     );
   },
 );

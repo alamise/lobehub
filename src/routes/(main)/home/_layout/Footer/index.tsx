@@ -7,11 +7,8 @@ import { type MenuProps } from '@lobehub/ui';
 import { ActionIcon, DropdownMenu, Flexbox, Icon } from '@lobehub/ui';
 import { DiscordIcon, GithubIcon } from '@lobehub/ui/icons';
 import {
-  Book,
   CircleHelp,
   Download,
-  Feather,
-  FileClockIcon,
   FlaskConical,
   MessageCircle,
   Rocket,
@@ -24,10 +21,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { useHasActiveWorkspace } from '@/business/client/hooks/useHasActiveWorkspace';
-import { openChangelogModal } from '@/components/ChangelogModal';
-import { openFeedbackModal } from '@/components/FeedbackModal';
 import HighlightNotification from '@/components/HighlightNotification';
-import { DOCUMENTS_REFER_URL, GITHUB } from '@/const/url';
+import { GITHUB } from '@/const/url';
 import Billboard from '@/features/Billboard';
 import { useBillboardMenuItems } from '@/features/Billboard/MenuItems';
 import { useActiveNavKey } from '@/features/NavPanel';
@@ -226,14 +221,6 @@ const Footer = memo(() => {
     });
   }, [isWithinTimeWindow, shouldAutoShowProductHuntCard, trackPromotionEvent]);
 
-  const handleOpenChangelogModal = useCallback(() => {
-    openChangelogModal();
-  }, []);
-
-  const handleOpenFeedbackModal = useCallback(() => {
-    openFeedbackModal();
-  }, []);
-
   const handleCloseAgentOnboardingCard = useCallback(() => {
     setIsAgentOnboardingCardOpen(false);
     markNotificationRead(AGENT_ONBOARDING_PROMO_SLUG);
@@ -325,21 +312,6 @@ const Footer = memo(() => {
           ]
         : []),
       {
-        icon: <Icon icon={Book} />,
-        key: 'docs',
-        label: (
-          <a href={DOCUMENTS_REFER_URL} rel="noopener noreferrer" target="_blank">
-            {t('userPanel.docs')}
-          </a>
-        ),
-      },
-      {
-        icon: <Icon icon={Feather} />,
-        key: 'feedback',
-        label: t('userPanel.feedback'),
-        onClick: handleOpenFeedbackModal,
-      },
-      {
         icon: <Icon icon={DiscordIcon} />,
         key: 'discord',
         label: (
@@ -350,12 +322,6 @@ const Footer = memo(() => {
       },
       {
         type: 'divider',
-      },
-      {
-        icon: <Icon icon={FileClockIcon} />,
-        key: 'changelog',
-        label: t('changelog'),
-        onClick: handleOpenChangelogModal,
       },
       ...(!isDesktop && footer.layout === 'compact'
         ? [
@@ -419,8 +385,6 @@ const Footer = memo(() => {
     footer.hideGitHub,
     footer.showEvalEntry,
     enableBusinessFeatures,
-    handleOpenChangelogModal,
-    handleOpenFeedbackModal,
     handleOpenProductHuntCard,
     shouldShowProductHuntMenuEntry,
     t,

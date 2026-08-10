@@ -578,8 +578,12 @@ const BusinessEiaWizardPage = memo(() => {
 
   return (
     <BusinessPageContainer>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div
+        className="business-eia-wizard"
+        style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
         <div
+          data-eia-breadcrumb="true"
           style={{
             alignItems: 'center',
             color: C.slate500,
@@ -597,7 +601,7 @@ const BusinessEiaWizardPage = memo(() => {
           <span style={{ color: C.slate700 }}>AI环评</span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div data-eia-main="true" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ color: C.slate900, fontSize: 24, fontWeight: 600 }}>AI环评</div>
 
           <EiaSteps current={getStepIndex(currentStepId)} items={assessmentSteps} />
@@ -690,7 +694,10 @@ const BusinessEiaWizardPage = memo(() => {
         </div>
 
         {currentStepId === 'conclusion' ? null : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div
+            data-eia-actions="true"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 {prevStepId ? (

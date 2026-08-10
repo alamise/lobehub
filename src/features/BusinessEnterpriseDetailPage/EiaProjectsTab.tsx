@@ -5,6 +5,8 @@ import { Alert, Card, Empty, Typography } from 'antd';
 import { cx } from 'antd-style';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useServerConfigStore } from '@/store/serverConfig';
+
 import {
   type EnvironmentalAssessmentFactory,
   type EnvironmentalAssessmentProject,
@@ -259,6 +261,7 @@ interface EiaProjectsTabProps {
  */
 const EiaProjectsTab = memo<EiaProjectsTabProps>(
   ({ factories, onOpenArchive, targetArchiveId }) => {
+    const isMobile = useServerConfigStore((s) => s.isMobile);
     const flatProjects = useMemo<FlatProject[]>(
       () =>
         factories.flatMap((factory) =>
@@ -351,8 +354,8 @@ const EiaProjectsTab = memo<EiaProjectsTabProps>(
           />
         ) : null}
 
-        <div className={styles.projectSplit}>
-          <div className={styles.projectListPanel}>
+        <div className={cx(styles.projectSplit, isMobile && styles.projectSplitMobile)}>
+          <div className={cx(styles.projectListPanel, isMobile && styles.projectListPanelMobile)}>
             {groupedByFactory.map(([factoryId, group]) => (
               <div key={factoryId}>
                 <div className={styles.projectFactoryLabel}>
@@ -388,10 +391,10 @@ const EiaProjectsTab = memo<EiaProjectsTabProps>(
             ))}
           </div>
 
-          <div className={styles.projectDetail}>
+          <div className={cx(styles.projectDetail, isMobile && styles.projectDetailMobile)}>
             {selected ? (
               <>
-                <div className={styles.projectHeader}>
+                <div className={cx(styles.projectHeader, isMobile && styles.projectHeaderMobile)}>
                   <div style={{ minWidth: 0 }}>
                     <Typography.Text strong style={{ fontSize: 15 }}>
                       {formatValue(

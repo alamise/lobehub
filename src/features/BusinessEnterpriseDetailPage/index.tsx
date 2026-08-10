@@ -3,6 +3,7 @@
 import { ArrowLeftOutlined, MessageOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Tabs } from '@lobehub/ui/base-ui';
 import { Empty, message, Spin, Typography } from 'antd';
+import { cx } from 'antd-style';
 import { Building2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
@@ -46,6 +47,7 @@ const BusinessEnterpriseDetailPage = memo(() => {
 
   const { data: session, isPending } = useSession();
   const enterpriseAgentId = useServerConfigStore(serverConfigSelectors.businessEnterpriseAgentId);
+  const isMobile = useServerConfigStore((s) => s.isMobile);
   const authToken = useMemo(
     () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
@@ -239,11 +241,11 @@ const BusinessEnterpriseDetailPage = memo(() => {
   return (
     <BusinessPageContainer maxWidth={1720}>
       <div className={styles.container}>
-        <div className={styles.headerCard}>
+        <div className={cx(styles.headerCard, isMobile && styles.headerCardMobile)}>
           <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
             返回企业列表
           </Button>
-          <div className={styles.headerTitle}>
+          <div className={cx(styles.headerTitle, isMobile && styles.headerTitleMobile)}>
             <div className={styles.iconBox}>
               <Building2 size={22} />
             </div>
@@ -265,7 +267,7 @@ const BusinessEnterpriseDetailPage = memo(() => {
           </Button>
         </div>
 
-        <div className={styles.tabCard}>
+        <div className={cx(styles.tabCard, isMobile && styles.tabCardMobile)}>
           <Tabs
             activeKey={activeTab}
             items={[
@@ -318,12 +320,14 @@ const BusinessEnterpriseDetailPage = memo(() => {
               },
               {
                 children: (
-                  <div className={styles.chatShell}>
+                  <div className={cx(styles.chatShell, isMobile && styles.chatShellMobile)}>
                     <div className={styles.chatShellHeader}>
                       <MessageOutlined style={{ marginRight: 8 }} />
                       当前企业问答
                     </div>
-                    <div className={styles.chatShellBody}>
+                    <div
+                      className={cx(styles.chatShellBody, isMobile && styles.chatShellBodyMobile)}
+                    >
                       <BusinessNativeChatPanel
                         agentId={enterpriseAgentId}
                         contextId={String(enterprise.id)}

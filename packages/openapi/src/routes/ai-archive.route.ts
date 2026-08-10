@@ -4,6 +4,13 @@ import { HTTPException } from 'hono/http-exception';
 import type { QueryResultRow } from 'pg';
 
 import {
+  buildArchiveDownloadFileName,
+  buildOssObjectUrl,
+  createArchiveFileResponse,
+  getImageContentType,
+  IMAGE_CACHE_MAX_AGE,
+} from './archiveOss';
+import {
   escapeLike,
   normalizeSize,
   requireLobeSession,
@@ -21,12 +28,7 @@ const EMR_SCOPE = 'emr';
 // 注意：列表接口（GET /）仍仅限 ARCHIVE_SCOPE，应急档案不会混入 AI 档案列表。
 const ARCHIVE_SCOPE_VALUES = [ARCHIVE_SCOPE, EMR_SCOPE];
 const DEFAULT_PAGE = 1;
-const ARCHIVE_OSS_PUBLIC_ENDPOINT =
-  process.env.ARCHIVE_OSS_PUBLIC_ENDPOINT ||
-  process.env.LEGACY_OSS_PUBLIC_ENDPOINT ||
-  'http://183.134.109.225:8010';
-
-const IMAGE_CACHE_MAX_AGE = 60 * 60 * 24;
+const DOWNLOAD_LINK_TTL_SECONDS = 300;
 
 const buildArchivePageAssetUrl = (
   archiveId: number,
@@ -36,57 +38,6 @@ const buildArchivePageAssetUrl = (
   if (!archiveId || !pageNum) return '';
   const endpoint = type === 'thumbnail' ? 'thumbnail?w=300' : 'image';
   return `/api/v1/ai-archive/${archiveId}/pages/${pageNum}/${endpoint}`;
-};
-
-const parseOssPath = (ossPath: string) => {
-  if (!ossPath) return undefined;
-  if (!ossPath.toLowerCase().startsWith('oss://')) {
-    return { bucket: '', key: ossPath.replace(/^\/+/, '') };
-  }
-
-  const path = ossPath.slice('oss://'.length);
-  const separatorIndex = path.indexOf('/');
-  if (separatorIndex < 0) return undefined;
-
-  return {
-    bucket: path.slice(0, separatorIndex),
-    key: path.slice(separatorIndex + 1),
-  };
-};
-
-const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
-
-const buildOssObjectUrl = (ossPath: string, type: 'image' | 'thumbnail') => {
-  const parsed = parseOssPath(ossPath);
-  if (!parsed?.key) return '';
-
-  const base = ARCHIVE_OSS_PUBLIC_ENDPOINT.replace(/\/$/, '');
-  const path = parsed.bucket
-    ? `${encodeURIComponent(parsed.bucket)}/${encodePath(parsed.key)}`
-    : encodePath(parsed.key);
-  const url = new URL(`${base}/${path}`);
-  if (type === 'thumbnail') url.searchParams.set('x-oss-process', 'image/resize,w_300');
-
-  return url.toString();
-};
-
-const getImageContentType = (path: string, fallback?: string | null) => {
-  if (fallback?.startsWith('image/')) return fallback;
-  const suffix = path.split('?')[0]?.split('.').pop()?.toLowerCase();
-  switch (suffix) {
-    case 'gif': {
-      return 'image/gif';
-    }
-    case 'png': {
-      return 'image/png';
-    }
-    case 'webp': {
-      return 'image/webp';
-    }
-    default: {
-      return 'image/jpeg';
-    }
-  }
 };
 
 interface ArchiveRow extends QueryResultRow {
@@ -292,6 +243,65 @@ AiArchiveRoutes.get('/:id', async (c) => {
 
   if (!archive) throw new HTTPException(404, { message: '档案不存在' });
   return success(c, archive);
+});
+
+// ---------------------------------------------------------------------------
+// 原始档案文件（PDF）下载：对齐旧版 Go download_handler.go
+// file_archive.oss_hit_first_path → OSS 签名 URL → 服务端流式中转
+// ---------------------------------------------------------------------------
+
+interface ArchiveFileRow extends QueryResultRow {
+  annex_name: string | null;
+  oss_hit_first_path: string | null;
+  title: string | null;
+}
+
+const getArchiveFile = async (archiveId: number) =>
+  withClient(async (client) => {
+    const result = await client.query<ArchiveFileRow>(
+      `SELECT fa.oss_hit_first_path, fa.annex_name, fa.title
+       FROM file_archive fa
+       WHERE fa.id = $1 AND fa.visible = $2 AND fa.scope = ANY($3::text[])
+       LIMIT 1`,
+      [archiveId, 'yes', ARCHIVE_SCOPE_VALUES],
+    );
+
+    const row = result.rows[0];
+    if (!row) throw new HTTPException(404, { message: '档案不存在' });
+
+    const ossPath = (row.oss_hit_first_path || '').trim();
+    if (!ossPath) throw new HTTPException(404, { message: '档案原件不存在' });
+
+    return {
+      fileName: buildArchiveDownloadFileName({
+        annexName: row.annex_name,
+        id: archiveId,
+        ossPath,
+        title: row.title,
+      }),
+      ossPath,
+    };
+  });
+
+AiArchiveRoutes.get('/:id/download-link', async (c) => {
+  const id = toPositiveInt(c.req.param('id'), 0);
+  if (!id) throw new HTTPException(400, { message: 'Invalid archive id' });
+
+  const { fileName } = await getArchiveFile(id);
+
+  return success(c, {
+    expire_at: Math.floor(Date.now() / 1000) + DOWNLOAD_LINK_TTL_SECONDS,
+    file_name: fileName,
+    url: `/api/v1/ai-archive/${id}/download`,
+  });
+});
+
+AiArchiveRoutes.get('/:id/download', async (c) => {
+  const id = toPositiveInt(c.req.param('id'), 0);
+  if (!id) throw new HTTPException(400, { message: 'Invalid archive id' });
+
+  const { fileName, ossPath } = await getArchiveFile(id);
+  return createArchiveFileResponse(ossPath, fileName);
 });
 
 interface ArchivePageRow extends QueryResultRow {

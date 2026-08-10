@@ -105,6 +105,16 @@ export const listCategories = (authToken?: string | null) =>
 export const getKnowledge = (id: number, authToken?: string | null) =>
   request<KnowledgeItem>(`/${id}`, undefined, authToken);
 
+export interface KnowledgeDownloadLink {
+  expire_at: number;
+  file_name: string;
+  url: string;
+}
+
+/** 获取科室知识库文档原件（PDF）下载地址 */
+export const getKnowledgeDownloadLink = (id: number, authToken?: string | null) =>
+  request<KnowledgeDownloadLink>(`/${id}/download-link`, undefined, authToken);
+
 export const getKnowledgePages = (
   id: number,
   params: { page?: number; size?: number },

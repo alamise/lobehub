@@ -1,37 +1,30 @@
-import { AGENT_CHAT_URL } from '@lobechat/const';
 import { memo } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
-import { DEFAULT_INBOX_AVATAR } from '@/const/meta';
-import { useNavigateToAgent } from '@/hooks/useNavigateToAgent';
-import { useAgentStore } from '@/store/agent';
-import { builtinAgentSelectors } from '@/store/agent/selectors';
-import { useServerConfigStore } from '@/store/serverConfig';
-import { useSessionStore } from '@/store/session';
-import { sessionSelectors } from '@/store/session/selectors';
+import { SHARED_AGENT_PATH } from '@/features/BusinessNavigation/config';
+import { useWorkspaceAwareNavigate } from '@/features/Workspace/useWorkspaceAwareNavigate';
 
 import ListItem from '../ListItem';
 
 const Inbox = memo(() => {
-  const mobile = useServerConfigStore((s) => s.isMobile);
-  const isInboxActive = useSessionStore(sessionSelectors.isInboxSession);
-  const navigateToAgent = useNavigateToAgent();
-  const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
+  const { pathname } = useLocation();
+  const navigate = useWorkspaceAwareNavigate();
+  const active = pathname === SHARED_AGENT_PATH || pathname.startsWith(`${SHARED_AGENT_PATH}/`);
 
   return (
     <Link
-      aria-label={'Lobe AI'}
-      to={AGENT_CHAT_URL(inboxAgentId, mobile)}
+      aria-label={'AI数字人'}
+      to={SHARED_AGENT_PATH}
       onClick={(e) => {
         e.preventDefault();
-        navigateToAgent(inboxAgentId);
+        navigate(SHARED_AGENT_PATH);
       }}
     >
       <ListItem
-        active={isInboxActive}
-        avatar={DEFAULT_INBOX_AVATAR}
+        active={active}
+        avatar={'/avatar.png'}
         key={'inbox'}
-        title={'Lobe AI'}
+        title={'AI数字人'}
         styles={{
           container: {
             gap: 12,

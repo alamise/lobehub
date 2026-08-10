@@ -54,6 +54,7 @@ const BizUtilityStyle = createGlobalStyle`
   .space-y-2 > * + * { margin-top: 8px; }
   .space-y-3 > * + * { margin-top: 12px; }
   .space-y-4 > * + * { margin-top: 16px; }
+  .space-y-5 > * + * { margin-top: 20px; }
   .space-y-6 > * + * { margin-top: 24px; }
 
   /* ---- padding ---- */
@@ -63,8 +64,10 @@ const BizUtilityStyle = createGlobalStyle`
   .p-6 { padding: 24px; }
   .px-0 { padding-inline: 0; }
   .px-3 { padding-inline: 12px; }
+  .px-4 { padding-inline: 16px; }
   .py-1\\.5 { padding-block: 6px; }
   .py-2 { padding-block: 8px; }
+  .py-3 { padding-block: 12px; }
   .py-12 { padding-block: 48px; }
   .py-16 { padding-block: 64px; }
   .pt-2 { padding-top: 8px; }
@@ -93,6 +96,7 @@ const BizUtilityStyle = createGlobalStyle`
   .w-9 { width: 36px; }
   .w-11 { width: 44px; }
   .h-full { height: 100%; }
+  .h-10 { height: 40px; }
   .h-2\\.5 { height: 10px; }
   .h-3 { height: 12px; }
   .h-9 { height: 36px; }
@@ -180,6 +184,7 @@ const BizUtilityStyle = createGlobalStyle`
   /* ---- overflow ---- */
   .overflow-auto { overflow: auto; }
   .overflow-y-auto { overflow-y: auto; }
+  .business-mobile-only { display: none; }
 
   /* ---- 环评页：lucide Loader2 旋转动画 ---- */
   @keyframes eia-spin { to { transform: rotate(360deg); } }
@@ -219,6 +224,7 @@ const BizUtilityStyle = createGlobalStyle`
     .sm\\:max-w-md { max-width: 448px; }
     .sm\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sm\\:col-span-2 { grid-column: span 2 / span 2; }
+    .sm\\:p-4 { padding: 16px; }
   }
 
   /* ---- responsive: md >= 768px ---- */
@@ -236,6 +242,112 @@ const BizUtilityStyle = createGlobalStyle`
   @media (min-width: 1024px) {
     .lg\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
+
+  /* ---- responsive: xl >= 1280px ---- */
+  @media (min-width: 1280px) {
+    .xl\\:grid-cols-\\[360px_minmax\\(0\\,1fr\\)\\] {
+      grid-template-columns: 360px minmax(0, 1fr);
+    }
+    .xl\\:grid-cols-\\[minmax\\(220px\\,1fr\\)_170px_110px_170px_220px_auto\\] {
+      grid-template-columns: minmax(220px, 1fr) 170px 110px 170px 220px auto;
+    }
+    .xl\\:col-span-1 { grid-column: span 1 / span 1; }
+    .xl\\:items-end { align-items: flex-end; }
+  }
+
+  /* ---- Ant Design business surfaces ---- */
+  .ant-table-wrapper,
+  .ant-card,
+  .ant-form,
+  .ant-tabs,
+  .ant-upload-wrapper {
+    max-width: 100%;
+  }
+
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  @media (max-width: 767px) {
+    .business-desktop-only { display: none !important; }
+    .business-mobile-only { display: block; }
+
+    .business-page-content {
+      padding-block: 16px 32px !important;
+      padding-inline: 12px !important;
+    }
+
+    .business-page-content .ant-card-body {
+      padding: 16px !important;
+    }
+
+    .business-page-content .ant-table {
+      min-width: 720px;
+    }
+
+    .business-page-content .ant-space,
+    .business-page-content .ant-space-item,
+    .business-page-content .ant-picker,
+    .business-page-content .ant-select,
+    .business-page-content .ant-input,
+    .business-page-content .ant-btn {
+      max-width: 100%;
+    }
+
+    .business-page-content .ant-space {
+      width: 100%;
+    }
+
+    .business-page-content .ant-space-item {
+      min-width: 0;
+    }
+
+    .business-page-content .ant-pagination {
+      justify-content: center;
+      row-gap: 8px;
+    }
+
+    .business-page-content .ant-pagination-options {
+      display: none;
+    }
+
+    .business-page-content .ant-tabs-nav {
+      margin-bottom: 12px;
+    }
+
+    .business-page-content .ant-tabs-nav-list {
+      min-width: max-content;
+    }
+
+    .business-page-content .ant-modal,
+    .business-page-content .ant-drawer-content-wrapper {
+      max-width: calc(100vw - 16px);
+    }
+
+    .business-eia-wizard {
+      gap: 16px !important;
+    }
+
+    .business-eia-wizard [data-eia-breadcrumb='true'] {
+      overflow-x: auto;
+      padding-bottom: 2px;
+      white-space: nowrap;
+    }
+
+    .business-eia-wizard [data-eia-main='true'] {
+      gap: 16px !important;
+    }
+
+    .business-eia-wizard [data-eia-actions='true'] > div:first-child {
+      display: grid !important;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .business-eia-wizard [data-eia-actions='true'] button {
+      width: 100%;
+    }
+  }
 `;
 
 interface BusinessPageContainerProps {
@@ -249,6 +361,7 @@ const BusinessPageContainer = memo<BusinessPageContainerProps>(({ children, maxW
     <BizUtilityStyle />
     <Flexbox flex={1} style={{ overflowY: 'auto' }} width={'100%'}>
       <div
+        className="business-page-content"
         style={{
           marginInline: 'auto',
           maxWidth,

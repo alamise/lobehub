@@ -1,14 +1,9 @@
-import { memo,Suspense } from 'react';
+import { memo } from 'react';
 
-import SessionListContent from './features/SessionListContent';
-import SkeletonList from './features/SkeletonList';
+import HomeContent from '@/routes/(main)/home/features';
 
 const Home = memo(() => {
-  return (
-    <Suspense fallback={<SkeletonList />}>
-      <SessionListContent />
-    </Suspense>
-  );
+  return <HomeContent />;
 });
 
 Home.displayName = 'MobileHome';

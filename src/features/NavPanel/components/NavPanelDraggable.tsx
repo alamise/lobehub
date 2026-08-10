@@ -134,6 +134,23 @@ const draggableStyles = createStaticStyles(({ css, cssVar }) => ({
         opacity: 1;
       }
     }
+
+    @media (width <= 768px) {
+      position: fixed !important;
+      z-index: 30 !important;
+      inset-block: 0 !important;
+      inset-inline-start: 0 !important;
+
+      width: min(320px, calc(100vw - 48px)) !important;
+      min-width: 0 !important;
+      max-width: min(320px, calc(100vw - 48px)) !important;
+
+      box-shadow: 16px 0 40px rgb(15 23 42 / 22%);
+
+      #${TOGGLE_BUTTON_ID}, #${USER_DROPDOWN_ICON_ID} {
+        opacity: 1;
+      }
+    }
   `,
 }));
 
@@ -178,7 +195,17 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent }
     const pendingWidth = isHomeNav
       ? Math.max(HOME_NAV_PANEL_MIN_WIDTH, pendingStoredWidth)
       : pendingStoredWidth;
-    return <div aria-hidden style={{ flexShrink: 0, height: '100%', width: pendingWidth }} />;
+    return (
+      <div
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          height: '100%',
+          maxWidth: 'min(320px, calc(100vw - 48px))',
+          width: pendingWidth,
+        }}
+      />
+    );
   }
 
   const defaultSize = { height: '100%', width: defaultWidthRef.current };

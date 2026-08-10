@@ -28,6 +28,7 @@ import {
   type ArchivePageItem,
   getAiArchive,
   getArchiveCategories,
+  getArchiveDownloadLink,
   getArchivePages,
 } from '@/features/BusinessArchivePage/api';
 import { ArchiveStatusBadge } from '@/features/BusinessArchivePage/components';
@@ -39,6 +40,7 @@ import {
 } from '@/features/BusinessEnterprisePage/api';
 import {
   getKnowledge,
+  getKnowledgeDownloadLink,
   getKnowledgePages,
   listCategories as listKnowledgeCategories,
 } from '@/features/BusinessKnowledgeBasePage/api';
@@ -46,7 +48,7 @@ import BusinessNativeChatPanel from '@/features/BusinessNativeChatPanel';
 import { useSession } from '@/libs/better-auth/auth-client';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
-import { parseArchivePageHash } from './utils';
+import { parseArchivePageHash, triggerBrowserDownload } from './utils';
 
 const LIST_PATH = '/enforcement/archive';
 const KNOWLEDGE_LIST_PATH = '/office/knowledge-base';
@@ -137,6 +139,11 @@ const styles = createStaticStyles(({ css }) => ({
 
     background: #f8fafc;
   `,
+  'containerMobile': css`
+    overflow: visible;
+    height: auto;
+    min-height: 100%;
+  `,
   'detailShell': css`
     overflow: hidden;
     display: flex;
@@ -148,6 +155,12 @@ const styles = createStaticStyles(({ css }) => ({
 
     background: #fff;
     box-shadow: 0 20px 40px rgb(15 23 42 / 10%);
+  `,
+  'detailShellMobile': css`
+    overflow: visible;
+    flex-direction: column;
+    border-radius: 12px;
+    box-shadow: none;
   `,
   'emptyCenter': css`
     display: flex;
@@ -164,6 +177,10 @@ const styles = createStaticStyles(({ css }) => ({
     flex: none;
     padding-block: 16px 12px;
     padding-inline: 20px;
+  `,
+  'headerMobile': css`
+    padding-block: 0 12px;
+    padding-inline: 0;
   `,
   'headerTitle': css`
     display: flex;
@@ -198,6 +215,13 @@ const styles = createStaticStyles(({ css }) => ({
     border-inline-end: 1px solid #e2e8f0;
 
     background: #f8fafc;
+  `,
+  'leftPanelMobile': css`
+    width: 100%;
+    min-width: 0;
+    max-height: none;
+    border-block-end: 1px solid #e2e8f0;
+    border-inline-end: 0;
   `,
   'leftPanelBody': css`
     overflow: auto;
@@ -234,6 +258,45 @@ const styles = createStaticStyles(({ css }) => ({
     font-size: 12px;
     color: #334155;
   `,
+  'mobileArchiveActions': css`
+    display: grid;
+    gap: 10px;
+  `,
+  'mobileArchiveCard': css`
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  `,
+  'mobileArchiveHeader': css`
+    display: grid;
+    gap: 12px;
+  `,
+  'mobileArchiveMeta': css`
+    display: grid;
+    gap: 10px;
+    margin-block-start: 12px;
+  `,
+  'mobileArchiveShell': css`
+    display: grid;
+    gap: 12px;
+
+    min-height: 100%;
+    padding: 12px;
+
+    background: #f8fafc;
+  `,
+  'mobileArchiveTitle': css`
+    margin: 0;
+
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+  `,
   'pageCanvas': css`
     overflow: auto;
     display: flex;
@@ -245,6 +308,10 @@ const styles = createStaticStyles(({ css }) => ({
     padding: 32px;
 
     background: rgb(241 245 249 / 55%);
+  `,
+  'pageCanvasMobile': css`
+    min-height: 420px;
+    padding: 14px;
   `,
   'pageImage': css`
     transform-origin: top center;
@@ -281,6 +348,10 @@ const styles = createStaticStyles(({ css }) => ({
     background: #fff;
     box-shadow: 0 14px 26px rgb(15 23 42 / 10%);
   `,
+  'pageTextPanelMobile': css`
+    width: 100%;
+    min-width: 0;
+  `,
   'pageTextPre': css`
     overflow: auto;
 
@@ -294,6 +365,24 @@ const styles = createStaticStyles(({ css }) => ({
     color: #334155;
     white-space: pre-wrap;
   `,
+  'pageWithText': css`
+    display: flex;
+    gap: 18px;
+    width: 100%;
+    min-height: 100%;
+  `,
+  'pageWithTextMobile': css`
+    flex-direction: column;
+  `,
+  'pageWithTextImage': css`
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  `,
+  'pageWithTextImageMobile': css`
+    flex: none;
+  `,
   'previewPanel': css`
     overflow: hidden;
     display: flex;
@@ -304,6 +393,10 @@ const styles = createStaticStyles(({ css }) => ({
     min-height: 0;
 
     background: #f1f5f9;
+  `,
+  'previewPanelMobile': css`
+    flex: none;
+    min-height: 520px;
   `,
   'previewSpin': css`
     overflow: hidden;
@@ -333,6 +426,13 @@ const styles = createStaticStyles(({ css }) => ({
     border-inline-start: 1px solid #e2e8f0;
 
     background: #fff;
+  `,
+  'rightPanelMobile': css`
+    width: 100%;
+    min-width: 0;
+    min-height: 520px;
+    border-block-start: 1px solid #e2e8f0;
+    border-inline-start: 0;
   `,
   'tabs': css`
     display: flex;
@@ -423,6 +523,10 @@ const styles = createStaticStyles(({ css }) => ({
     background: #fff;
     box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
   `,
+  'toolbarMobile': css`
+    align-items: flex-start;
+    padding: 10px;
+  `,
   'toolbarActions': css`
     display: flex;
     flex-wrap: wrap;
@@ -432,17 +536,28 @@ const styles = createStaticStyles(({ css }) => ({
 
     color: #64748b;
   `,
+  'toolbarActionsMobile': css`
+    justify-content: flex-start;
+    width: 100%;
+  `,
   'toolbarDivider': css`
     width: 1px;
     height: 18px;
     margin-inline: 4px;
     background: #cbd5e1;
   `,
+  'toolbarDividerMobile': css`
+    display: none;
+  `,
   'topRow': css`
     display: flex;
     gap: 14px;
     align-items: center;
     justify-content: space-between;
+  `,
+  'topRowMobile': css`
+    flex-direction: column;
+    align-items: stretch;
   `,
 
   '@media (max-width: 1199px)': {
@@ -467,6 +582,69 @@ const styles = createStaticStyles(({ css }) => ({
       min-height: 520px;
       border-block-start: 1px solid #e2e8f0;
       border-inline-start: 0;
+    `,
+  },
+  '@media (max-width: 767px)': {
+    aiBody: css`
+      padding: 12px;
+    `,
+    container: css`
+      overflow: visible;
+      height: auto;
+      min-height: 100%;
+    `,
+    detailShell: css`
+      overflow: visible;
+      border-radius: 12px;
+      box-shadow: none;
+    `,
+    header: css`
+      padding-block: 0 12px;
+      padding-inline: 0;
+    `,
+    leftPanel: css`
+      max-height: none;
+    `,
+    leftPanelHeader: css`
+      padding: 12px;
+    `,
+    pageCanvas: css`
+      min-height: 420px;
+      padding: 14px;
+    `,
+    pagePlaceholder: css`
+      min-height: 420px;
+    `,
+    pageTextPanel: css`
+      width: 100%;
+      min-width: 0;
+    `,
+    pageWithText: css`
+      flex-direction: column;
+    `,
+    pageWithTextImage: css`
+      flex: none;
+    `,
+    previewPanel: css`
+      min-height: 520px;
+    `,
+    rightPanel: css`
+      min-height: 520px;
+    `,
+    toolbar: css`
+      align-items: flex-start;
+      padding: 10px;
+    `,
+    toolbarActions: css`
+      justify-content: flex-start;
+      width: 100%;
+    `,
+    toolbarDivider: css`
+      display: none;
+    `,
+    topRow: css`
+      flex-direction: column;
+      align-items: stretch;
     `,
   },
 }));
@@ -535,6 +713,7 @@ const BusinessArchiveDetailPage = memo(() => {
 
   const { data: session, isPending } = useSession();
   const archiveAgentId = useServerConfigStore(serverConfigSelectors.businessArchiveAgentId);
+  const isMobile = useServerConfigStore((s) => s.isMobile);
   const authToken = useMemo(
     () => (session as { accessToken?: string } | null | undefined)?.accessToken ?? null,
     [session],
@@ -553,6 +732,7 @@ const BusinessArchiveDetailPage = memo(() => {
   const [showText, setShowText] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [aiTab, setAiTab] = useState<AiTab>('guide');
+  const [downloading, setDownloading] = useState(false);
   const [hashPageNum, setHashPageNum] = useState<number | undefined>(() =>
     typeof window === 'undefined' ? undefined : parseArchivePageHash(window.location.hash),
   );
@@ -751,9 +931,26 @@ const BusinessArchiveDetailPage = memo(() => {
     [archiveId, setSelectedPageNum],
   );
 
-  const handleDownload = () => {
-    message.info('原 PDF 暂不可下载');
-  };
+  // 下载档案原件（PDF）：对齐旧系统，后端按 file_archive.oss_hit_first_path 从 OSS 中转，
+  // 而不是下载页面切图。PC 与移动端共用同一入口。
+  const handleDownload = useCallback(async () => {
+    if (!Number.isFinite(archiveId) || archiveId <= 0) return;
+    setDownloading(true);
+    try {
+      const link = isKnowledgeSource
+        ? await getKnowledgeDownloadLink(archiveId, authToken)
+        : await getArchiveDownloadLink(archiveId, authToken);
+      if (!link?.url) {
+        message.warning('该档案暂无原始 PDF 文件');
+        return;
+      }
+      triggerBrowserDownload(link.url, link.file_name);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '档案原件下载失败');
+    } finally {
+      setDownloading(false);
+    }
+  }, [archiveId, authToken, isKnowledgeSource]);
 
   const toggleCategory = (code: string) => {
     setExpandedCategories((previous) => {
@@ -792,10 +989,78 @@ const BusinessArchiveDetailPage = memo(() => {
   const pageText = getPageText(currentPage);
   const imageUrl = resolveAssetUrl(currentPage?.image_url);
 
+  if (isMobile) {
+    return (
+      <div className={styles.mobileArchiveShell}>
+        <div className={styles.mobileArchiveHeader}>
+          <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
+            返回列表
+          </Button>
+          <div className={styles.mobileArchiveCard}>
+            <h1 className={styles.mobileArchiveTitle}>{archive.title || '档案详情'}</h1>
+            <Typography.Text type="secondary">
+              档案 ID：{archiveId} · {archive.page_count ?? pages.length ?? 0} 页
+            </Typography.Text>
+          </div>
+        </div>
+
+        <div className={styles.mobileArchiveCard}>
+          <Typography.Text strong>基本信息</Typography.Text>
+          <div className={styles.mobileArchiveMeta}>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>文件编号</span>
+              <span>{archive.doc_no || '-'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>年度</span>
+              <span>{archive.year || '-'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>分类</span>
+              <span>{archive.category_name || archive.category_code || '-'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>责任方</span>
+              <span>{archive.responsible_party || '-'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>部门</span>
+              <span>{archive.dept_name || '-'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>状态</span>
+              <span>
+                <ArchiveStatusBadge status={archive.process_status} />
+              </span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>创建时间</span>
+              <span>{formatDateTime(archive.create_time)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.mobileArchiveActions}>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={downloading}
+            type="primary"
+            onClick={handleDownload}
+          >
+            下载档案原件（PDF）
+          </Button>
+          <Button icon={<ReloadOutlined />} loading={pagesLoading} onClick={handleRefresh}>
+            刷新
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.topRow}>
+    <div className={cx(styles.container, isMobile && styles.containerMobile)}>
+      <div className={cx(styles.header, isMobile && styles.headerMobile)}>
+        <div className={cx(styles.topRow, isMobile && styles.topRowMobile)}>
           <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
             返回列表
           </Button>
@@ -819,8 +1084,8 @@ const BusinessArchiveDetailPage = memo(() => {
         </div>
       </div>
 
-      <div className={styles.detailShell}>
-        <aside className={styles.leftPanel}>
+      <div className={cx(styles.detailShell, isMobile && styles.detailShellMobile)}>
+        <aside className={cx(styles.leftPanel, isMobile && styles.leftPanelMobile)}>
           <div className={styles.leftPanelHeader}>
             <Button icon={<ArrowLeftOutlined />} type="link" onClick={handleBack}>
               返回列表
@@ -953,162 +1218,182 @@ const BusinessArchiveDetailPage = memo(() => {
           </div>
         </aside>
 
-        <main className={styles.previewPanel}>
-          <div className={styles.toolbar}>
-            <Typography.Text strong>
-              {currentPage ? `第 ${currentPage.page_num} 页` : archive.title || '档案预览'}
-            </Typography.Text>
-            <div className={styles.toolbarActions}>
-              <Segmented
-                size="small"
-                value={previewMode}
-                options={[
-                  { icon: <FileImageOutlined />, label: '单页', value: 'page' },
-                  { icon: <UnorderedListOutlined />, label: '缩略图', value: 'thumbnail' },
-                ]}
-                onChange={(value) => setPreviewMode(value as PreviewMode)}
-              />
-              <span className={styles.toolbarDivider} />
-              <Tooltip title="缩小">
-                <Button
-                  icon={<MinusOutlined />}
-                  size="small"
-                  onClick={() => setZoom((value) => Math.max(50, value - 10))}
-                />
-              </Tooltip>
-              <Typography.Text
-                style={{ fontFamily: 'monospace', fontSize: 12, width: 44, textAlign: 'center' }}
-              >
-                {zoom}%
+        {!isMobile && (
+          <main className={cx(styles.previewPanel, isMobile && styles.previewPanelMobile)}>
+            <div className={cx(styles.toolbar, isMobile && styles.toolbarMobile)}>
+              <Typography.Text strong>
+                {currentPage ? `第 ${currentPage.page_num} 页` : archive.title || '档案预览'}
               </Typography.Text>
-              <Tooltip title="放大">
-                <Button
-                  icon={<PlusOutlined />}
+              <div className={cx(styles.toolbarActions, isMobile && styles.toolbarActionsMobile)}>
+                <Segmented
                   size="small"
-                  onClick={() => setZoom((value) => Math.min(200, value + 10))}
+                  value={previewMode}
+                  options={[
+                    { icon: <FileImageOutlined />, label: '单页', value: 'page' },
+                    { icon: <UnorderedListOutlined />, label: '缩略图', value: 'thumbnail' },
+                  ]}
+                  onChange={(value) => setPreviewMode(value as PreviewMode)}
                 />
-              </Tooltip>
-              <span className={styles.toolbarDivider} />
-              <Button
-                disabled={currentPageIndex <= 0}
-                icon={<LeftOutlined />}
-                size="small"
-                onClick={handlePrevPage}
-              />
-              <Typography.Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                {currentPage?.page_num || 0} / {totalPages || 0}
-              </Typography.Text>
-              <Button
-                disabled={currentPageIndex < 0 || currentPageIndex >= pages.length - 1}
-                icon={<RightOutlined />}
-                size="small"
-                onClick={handleNextPage}
-              />
-              <span className={styles.toolbarDivider} />
-              <Tooltip title="显示解析结果">
+                <span
+                  className={cx(styles.toolbarDivider, isMobile && styles.toolbarDividerMobile)}
+                />
+                <Tooltip title="缩小">
+                  <Button
+                    icon={<MinusOutlined />}
+                    size="small"
+                    onClick={() => setZoom((value) => Math.max(50, value - 10))}
+                  />
+                </Tooltip>
+                <Typography.Text
+                  style={{ fontFamily: 'monospace', fontSize: 12, width: 44, textAlign: 'center' }}
+                >
+                  {zoom}%
+                </Typography.Text>
+                <Tooltip title="放大">
+                  <Button
+                    icon={<PlusOutlined />}
+                    size="small"
+                    onClick={() => setZoom((value) => Math.min(200, value + 10))}
+                  />
+                </Tooltip>
+                <span
+                  className={cx(styles.toolbarDivider, isMobile && styles.toolbarDividerMobile)}
+                />
                 <Button
-                  icon={<SplitCellsOutlined />}
+                  disabled={currentPageIndex <= 0}
+                  icon={<LeftOutlined />}
                   size="small"
-                  type={showText ? 'primary' : 'default'}
-                  onClick={() => setShowText((value) => !value)}
+                  onClick={handlePrevPage}
                 />
-              </Tooltip>
-              <Tooltip title="下载PDF">
-                <Button icon={<DownloadOutlined />} size="small" onClick={handleDownload} />
-              </Tooltip>
+                <Typography.Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                  {currentPage?.page_num || 0} / {totalPages || 0}
+                </Typography.Text>
+                <Button
+                  disabled={currentPageIndex < 0 || currentPageIndex >= pages.length - 1}
+                  icon={<RightOutlined />}
+                  size="small"
+                  onClick={handleNextPage}
+                />
+                <span
+                  className={cx(styles.toolbarDivider, isMobile && styles.toolbarDividerMobile)}
+                />
+                <Tooltip title="显示解析结果">
+                  <Button
+                    icon={<SplitCellsOutlined />}
+                    size="small"
+                    type={showText ? 'primary' : 'default'}
+                    onClick={() => setShowText((value) => !value)}
+                  />
+                </Tooltip>
+                <Tooltip title="下载档案原件（PDF）">
+                  <Button
+                    icon={<DownloadOutlined />}
+                    loading={downloading}
+                    size="small"
+                    onClick={handleDownload}
+                  />
+                </Tooltip>
+              </div>
             </div>
-          </div>
 
-          <Spin spinning={pagesLoading} wrapperClassName={styles.previewSpin}>
-            <div className={styles.pageCanvas}>
-              {previewMode === 'thumbnail' ? (
-                pages.length === 0 ? (
-                  <Empty description="暂无页面数据" />
-                ) : (
-                  <div className={styles.thumbnailGrid}>
-                    {pages.map((page) => {
-                      const thumb = resolveAssetUrl(page.thumbnail_url || page.image_url);
-                      return (
-                        <div
-                          key={page.id}
-                          className={cx(
-                            styles.thumbnailItem,
-                            page.page_num === currentPage?.page_num && styles.thumbnailItemActive,
-                          )}
-                          onClick={() => {
-                            setSelectedPageNum(page.page_num);
-                            setPreviewMode('page');
-                          }}
-                        >
-                          {thumb ? (
-                            <img alt={`第${page.page_num}页`} src={thumb} />
-                          ) : (
-                            <FileTextOutlined style={{ fontSize: 34 }} />
-                          )}
+            <Spin spinning={pagesLoading} wrapperClassName={styles.previewSpin}>
+              <div className={cx(styles.pageCanvas, isMobile && styles.pageCanvasMobile)}>
+                {previewMode === 'thumbnail' ? (
+                  pages.length === 0 ? (
+                    <Empty description="暂无页面数据" />
+                  ) : (
+                    <div className={styles.thumbnailGrid}>
+                      {pages.map((page) => {
+                        const thumb = resolveAssetUrl(page.thumbnail_url || page.image_url);
+                        return (
                           <div
-                            style={{
-                              background: 'rgb(255 255 255 / 86%)',
-                              bottom: 8,
-                              color: '#64748b',
-                              fontSize: 12,
-                              left: 0,
-                              position: 'absolute',
-                              right: 0,
-                              textAlign: 'center',
+                            key={page.id}
+                            className={cx(
+                              styles.thumbnailItem,
+                              page.page_num === currentPage?.page_num && styles.thumbnailItemActive,
+                            )}
+                            onClick={() => {
+                              setSelectedPageNum(page.page_num);
+                              setPreviewMode('page');
                             }}
                           >
-                            P{page.page_num}
+                            {thumb ? (
+                              <img alt={`第${page.page_num}页`} src={thumb} />
+                            ) : (
+                              <FileTextOutlined style={{ fontSize: 34 }} />
+                            )}
+                            <div
+                              style={{
+                                background: 'rgb(255 255 255 / 86%)',
+                                bottom: 8,
+                                color: '#64748b',
+                                fontSize: 12,
+                                left: 0,
+                                position: 'absolute',
+                                right: 0,
+                                textAlign: 'center',
+                              }}
+                            >
+                              P{page.page_num}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              ) : !currentPage ? (
-                <Empty description="暂无页面数据" />
-              ) : showText ? (
-                <div style={{ display: 'flex', gap: 18, minHeight: '100%', width: '100%' }}>
-                  <div style={{ display: 'flex', flex: 1, justifyContent: 'center', minWidth: 0 }}>
-                    {imageUrl ? (
-                      <img
-                        alt={`第${currentPage.page_num}页`}
-                        className={styles.pageImage}
-                        src={imageUrl}
-                        style={{ transform: `scale(${zoom / 100})` }}
-                      />
-                    ) : (
-                      <div className={styles.pagePlaceholder}>
-                        <FileSearchOutlined style={{ fontSize: 64 }} />
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.pageTextPanel}>
-                    <div style={{ borderBottom: '1px solid #e2e8f0', padding: '10px 14px' }}>
-                      <Typography.Text strong>解析结果</Typography.Text>
-                      <Typography.Text style={{ float: 'right', fontSize: 12 }} type="secondary">
-                        {currentPage.parse_status || 'pending'}
-                      </Typography.Text>
+                        );
+                      })}
                     </div>
-                    <pre className={styles.pageTextPre}>{pageText || '暂无解析结果'}</pre>
+                  )
+                ) : !currentPage ? (
+                  <Empty description="暂无页面数据" />
+                ) : showText ? (
+                  <div className={cx(styles.pageWithText, isMobile && styles.pageWithTextMobile)}>
+                    <div
+                      className={cx(
+                        styles.pageWithTextImage,
+                        isMobile && styles.pageWithTextImageMobile,
+                      )}
+                    >
+                      {imageUrl ? (
+                        <img
+                          alt={`第${currentPage.page_num}页`}
+                          className={styles.pageImage}
+                          src={imageUrl}
+                          style={{ transform: `scale(${zoom / 100})` }}
+                        />
+                      ) : (
+                        <div className={styles.pagePlaceholder}>
+                          <FileSearchOutlined style={{ fontSize: 64 }} />
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className={cx(styles.pageTextPanel, isMobile && styles.pageTextPanelMobile)}
+                    >
+                      <div style={{ borderBottom: '1px solid #e2e8f0', padding: '10px 14px' }}>
+                        <Typography.Text strong>解析结果</Typography.Text>
+                        <Typography.Text style={{ float: 'right', fontSize: 12 }} type="secondary">
+                          {currentPage.parse_status || 'pending'}
+                        </Typography.Text>
+                      </div>
+                      <pre className={styles.pageTextPre}>{pageText || '暂无解析结果'}</pre>
+                    </div>
                   </div>
-                </div>
-              ) : imageUrl ? (
-                <img
-                  alt={`第${currentPage.page_num}页`}
-                  className={styles.pageImage}
-                  src={imageUrl}
-                  style={{ transform: `scale(${zoom / 100})` }}
-                />
-              ) : (
-                <div className={styles.pagePlaceholder}>
-                  <FileSearchOutlined style={{ fontSize: 64 }} />
-                </div>
-              )}
-            </div>
-          </Spin>
-        </main>
+                ) : imageUrl ? (
+                  <img
+                    alt={`第${currentPage.page_num}页`}
+                    className={styles.pageImage}
+                    src={imageUrl}
+                    style={{ transform: `scale(${zoom / 100})` }}
+                  />
+                ) : (
+                  <div className={styles.pagePlaceholder}>
+                    <FileSearchOutlined style={{ fontSize: 64 }} />
+                  </div>
+                )}
+              </div>
+            </Spin>
+          </main>
+        )}
 
-        <aside className={styles.rightPanel}>
+        <aside className={cx(styles.rightPanel, isMobile && styles.rightPanelMobile)}>
           <div className={styles.tabs}>
             <button
               className={cx(styles.tabButton, aiTab === 'guide' && styles.tabButtonActive)}

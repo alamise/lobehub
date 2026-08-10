@@ -109,6 +109,11 @@ export const styles = createStaticStyles(({ css }) => ({
 
     background: #fff;
   `,
+  'chatShellMobile': css`
+    height: calc(100vh - 190px);
+    min-height: 520px;
+    border-radius: 12px;
+  `,
   'chatShellBody': css`
     overflow: hidden;
     display: flex;
@@ -121,6 +126,9 @@ export const styles = createStaticStyles(({ css }) => ({
     border-end-end-radius: 14px;
 
     background: #f8fafc;
+  `,
+  'chatShellBodyMobile': css`
+    padding: 10px;
   `,
   'chatShellHeader': css`
     flex: none;
@@ -192,6 +200,14 @@ export const styles = createStaticStyles(({ css }) => ({
     background: #fff;
     box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
   `,
+  'headerCardMobile': css`
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+
+    padding: 14px;
+    border-radius: 12px;
+  `,
   'headerTitle': css`
     display: flex;
     flex: 1;
@@ -199,6 +215,9 @@ export const styles = createStaticStyles(({ css }) => ({
     align-items: center;
 
     min-width: 0;
+  `,
+  'headerTitleMobile': css`
+    align-items: flex-start;
   `,
   'iconBox': css`
     display: flex;
@@ -265,6 +284,10 @@ export const styles = createStaticStyles(({ css }) => ({
 
     background: #fff;
   `,
+  'projectDetailMobile': css`
+    width: 100%;
+    padding: 12px;
+  `,
   'projectFactoryLabel': css`
     padding-block: 10px 6px;
     padding-inline: 6px;
@@ -282,6 +305,9 @@ export const styles = createStaticStyles(({ css }) => ({
     margin-block-end: 12px;
     padding-block-end: 12px;
     border-block-end: 1px solid #e2e8f0;
+  `,
+  'projectHeaderMobile': css`
+    flex-direction: column;
   `,
   'projectListItem': css`
     cursor: pointer;
@@ -333,11 +359,20 @@ export const styles = createStaticStyles(({ css }) => ({
 
     background: #f8fafc;
   `,
+  'projectListPanelMobile': css`
+    width: 100%;
+    min-width: 0;
+    max-height: 320px;
+    padding: 8px;
+  `,
   'projectSplit': css`
     display: flex;
     gap: 14px;
     align-items: flex-start;
     min-height: 0;
+  `,
+  'projectSplitMobile': css`
+    flex-direction: column;
   `,
   'searchBar': css`
     display: flex;
@@ -358,6 +393,14 @@ export const styles = createStaticStyles(({ css }) => ({
     background: #fff;
     box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
   `,
+  'tabCardMobile': css`
+    padding: 10px;
+    border-radius: 12px;
+
+    .ant-tabs-nav {
+      overflow-x: auto;
+    }
+  `,
   '@media (max-width: 1199px)': {
     projectListPanel: css`
       width: 100%;
@@ -366,6 +409,70 @@ export const styles = createStaticStyles(({ css }) => ({
     `,
     projectSplit: css`
       flex-direction: column;
+    `,
+  },
+  '@media (max-width: 767px)': {
+    archiveTable: css`
+      overflow: auto;
+
+      table {
+        min-width: 680px;
+      }
+    `,
+    categoryChipRow: css`
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      padding: 10px;
+    `,
+    chatShell: css`
+      height: calc(100vh - 190px);
+      min-height: 520px;
+      border-radius: 12px;
+    `,
+    chatShellBody: css`
+      padding: 10px;
+    `,
+    fieldGrid: css`
+      grid-template-columns: 1fr;
+      gap: 10px;
+    `,
+    headerCard: css`
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+
+      padding: 14px;
+      border-radius: 12px;
+    `,
+    headerTitle: css`
+      align-items: flex-start;
+    `,
+    moduleTable: css`
+      table {
+        min-width: 620px;
+      }
+    `,
+    projectDetail: css`
+      padding: 12px;
+    `,
+    projectHeader: css`
+      flex-direction: column;
+    `,
+    projectListPanel: css`
+      max-height: 240px;
+      padding: 8px;
+    `,
+    searchBar: css`
+      flex-direction: column;
+      padding: 10px;
+    `,
+    tabCard: css`
+      padding: 10px;
+      border-radius: 12px;
+
+      .ant-tabs-nav {
+        overflow-x: auto;
+      }
     `,
   },
 }));

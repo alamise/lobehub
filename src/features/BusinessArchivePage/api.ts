@@ -124,6 +124,16 @@ export interface ArchivePageItem {
   thumbnail_url?: string;
 }
 
+export interface ArchiveDownloadLink {
+  expire_at: number;
+  file_name: string;
+  url: string;
+}
+
+/** 获取档案原件（PDF）下载地址，对齐旧系统 /api/archives/:id/download-link */
+export const getArchiveDownloadLink = (id: number, authToken?: string | null) =>
+  request<ArchiveDownloadLink>(`/${id}/download-link`, undefined, authToken);
+
 export const getArchivePages = (
   id: number,
   params: { page?: number; size?: number },
