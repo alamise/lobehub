@@ -3,11 +3,10 @@ import {
   isRemoteHeterogeneousType,
 } from '@lobechat/heterogeneous-agents';
 import { type ModelPerformance, type ModelUsage } from '@lobechat/types';
-import { ModelIcon } from '@lobehub/icons';
 import { Center, Flexbox, Icon, Tooltip } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { CircleDollarSignIcon } from 'lucide-react';
+import { BrainCircuit, CircleDollarSignIcon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -79,7 +78,7 @@ const Usage = memo<UsageProps>(({ model, usage, performance, provider }) => {
         <Center horizontal gap={4}>
           {heteroName || (
             <>
-              <ModelIcon model={model as string} type={'mono'} />
+              <Icon icon={BrainCircuit} size={13} />
               {modelCard?.displayName || model}
             </>
           )}

@@ -46,6 +46,7 @@ vi.mock('./useBuildActions', () => ({
     del: { key: 'del', label: 'Delete' },
     edit: { key: 'edit', label: 'Edit' },
     regenerate: { key: 'regenerate', label: 'Regenerate' },
+    tts: { key: 'tts', label: 'Text to speech' },
   }),
 }));
 
@@ -72,13 +73,13 @@ describe('MessageActionBar', () => {
     expect(actionGroup).toHaveStyle({ background: 'transparent', borderRadius: '0' });
   });
 
-  it('limits workspace viewers to copy only', () => {
+  it('limits workspace viewers to copy in the bar and tts in the menu', () => {
     permissionMock.canEdit = false;
 
     render(
       <MessageActionBar
         bar={['edit', 'copy', 'regenerate']}
-        menu={['edit', 'copy', 'del']}
+        menu={['edit', 'copy', 'tts', 'del']}
         ctx={{
           data: { content: 'hello', role: 'assistant' } as UIChatMessage,
           id: 'message-1',
@@ -89,6 +90,6 @@ describe('MessageActionBar', () => {
 
     const group = screen.getByTestId('action-group');
     expect(group).toHaveAttribute('data-items', 'copy');
-    expect(group).toHaveAttribute('data-menu', '');
+    expect(group).toHaveAttribute('data-menu', 'tts');
   });
 });

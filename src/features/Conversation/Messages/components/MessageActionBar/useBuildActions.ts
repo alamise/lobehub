@@ -28,7 +28,7 @@ export const useBuildActions = (
   ctx: MessageActionContext,
 ): Record<string, MessageActionItem | null> => {
   // View-only General access on the conversation's agent/group: mutating
-  // actions (send/regenerate/edit/delete/translate/tts/branch) don't apply —
+  // actions (send/regenerate/edit/delete/translate/branch) don't apply —
   // same "absent when not applicable" rule as the role checks above.
   const { canUseResource } = useConversationResourceAccess();
 
@@ -57,7 +57,6 @@ export const useBuildActions = (
       'edit',
       'regenerate',
       'translate',
-      'tts',
     ]) {
       actions[key] = null;
     }

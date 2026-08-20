@@ -1,9 +1,14 @@
 import { getCachedTextInputUnitRate, getWriteCacheInputUnitRate } from '@lobechat/utils';
-import { ModelIcon } from '@lobehub/icons';
 import { Flexbox, Icon, Tooltip } from '@lobehub/ui';
 import { Tabs } from '@lobehub/ui/base-ui';
 import { createStaticStyles } from 'antd-style';
-import { ArrowDownToDot, ArrowUpFromDot, BookUp2Icon, CircleFadingArrowUp } from 'lucide-react';
+import {
+  ArrowDownToDot,
+  ArrowUpFromDot,
+  BookUp2Icon,
+  BrainCircuit,
+  CircleFadingArrowUp,
+} from 'lucide-react';
 import { type LobeDefaultAiModelListItem } from 'model-bank';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -52,7 +57,7 @@ const ModelCard = memo<ModelCardProps>(({ pricing, id, provider, displayName }) 
         justify={'space-between'}
       >
         <Flexbox horizontal align={'center'} gap={8}>
-          <ModelIcon model={id} size={22} />
+          <Icon icon={BrainCircuit} size={22} />
           <Flexbox flex={1} gap={2} style={{ minWidth: 0 }}>
             <Flexbox horizontal align={'center'} gap={8} style={{ lineHeight: '12px' }}>
               {displayName || id}

@@ -26,7 +26,7 @@ export const useTTS = (content: string, config?: TTSConfig) => {
   const options = {
     api: {
       headers: createHeaderWithOpenAI(),
-      serviceUrl: API_ENDPOINTS.tts(enableBusinessFeatures ? businessTTSProvider : 'openai'),
+      serviceUrl: API_ENDPOINTS.tts(enableBusinessFeatures ? businessTTSProvider : 'cyan'),
     },
     options: {
       model: ttsSettings.openAI.ttsModel,

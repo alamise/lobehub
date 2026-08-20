@@ -1,6 +1,6 @@
-import { Center, Flexbox } from '@lobehub/ui';
+import { Center, Flexbox, Icon } from '@lobehub/ui';
 import { createStaticStyles, cx } from 'antd-style';
-import { ChevronDownIcon } from 'lucide-react';
+import { BrainCircuit, ChevronDownIcon } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
@@ -85,6 +85,7 @@ const ModelLabel = memo(() => {
       paddingInline={6}
     >
       <Flexbox horizontal align={'center'} gap={2}>
+        <Icon icon={BrainCircuit} size={14} />
         <span className={styles.name}>{displayName}</span>
         {canSelectModel ? <ChevronDownIcon className={styles.chevron} size={12} /> : null}
       </Flexbox>

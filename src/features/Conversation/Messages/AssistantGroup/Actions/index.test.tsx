@@ -79,6 +79,7 @@ describe('GroupActionsBar — hetero (assistantGroup) forward/select gating', ()
     const menu = bar.getAttribute('data-menu') ?? '';
     expect(menu.split(',')).toContain('select');
     expect(menu.split(',')).toContain('share');
+    expect(menu.split(',')).toContain('tts');
     expect(menu.split(',')).toContain('edit');
     expect(bar).toHaveAttribute('data-has-leading', 'true');
     expect(screen.getByTestId('reaction-picker')).toBeInTheDocument();

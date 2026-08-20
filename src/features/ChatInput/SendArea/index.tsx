@@ -8,6 +8,7 @@ import { useChatInputResourceAccess } from '../hooks/useChatInputResourceAccess'
 import { useChatInputStore } from '../store';
 import ExpandButton from './ExpandButton';
 import SendButton from './SendButton';
+import VoiceInputButton from './VoiceInputButton';
 
 const mapActionsToItems = (keys: ActionKey[]) =>
   keys.map((actionKey) => {
@@ -36,6 +37,7 @@ const SendArea = memo(() => {
     <Flexbox horizontal align={'center'} flex={'none'} gap={12}>
       {canShowControls && allowExpand && <ExpandButton />}
       {items}
+      <VoiceInputButton />
       <SendButton />
     </Flexbox>
   );

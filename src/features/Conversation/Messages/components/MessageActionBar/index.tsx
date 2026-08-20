@@ -11,6 +11,7 @@ import { useBuildActions } from './useBuildActions';
 
 const DIVIDER: MessageActionItemOrDivider = { type: 'divider' };
 const VIEWER_BAR: MessageActionSlot[] = ['copy'];
+const VIEWER_MENU: MessageActionSlot[] = ['tts'];
 
 const stripHandleClick = (item: MessageActionItemOrDivider): ActionIconGroupItemType => {
   if ('type' in item && item.type === 'divider') return item as unknown as ActionIconGroupItemType;
@@ -83,7 +84,7 @@ export const MessageActionBar = memo<MessageActionBarProps>(({ ctx, bar, leading
   const { allowed: canEdit } = usePermission('edit_own_content');
 
   const effectiveBar = canEdit ? bar : VIEWER_BAR;
-  const effectiveMenu = canEdit ? menu : undefined;
+  const effectiveMenu = canEdit ? menu : menu?.includes('tts') ? VIEWER_MENU : undefined;
 
   const barItems = useMemo(() => resolveSlots(effectiveBar, built), [effectiveBar, built]);
   const menuItems = useMemo(

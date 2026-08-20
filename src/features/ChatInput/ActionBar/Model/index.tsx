@@ -1,6 +1,6 @@
-import { ModelIcon } from '@lobehub/icons';
-import { Center, Tooltip } from '@lobehub/ui';
+import { Center, Icon, Tooltip } from '@lobehub/ui';
 import { createStaticStyles, cx } from 'antd-style';
+import { BrainCircuit } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
@@ -89,7 +89,7 @@ const ModelSwitch = memo(() => {
       width={blockSize}
     >
       <div className={styles.icon}>
-        <ModelIcon model={model} size={iconSize} />
+        <Icon icon={BrainCircuit} size={iconSize} />
       </div>
     </Center>
   );
