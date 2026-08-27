@@ -260,7 +260,13 @@ export class ToolExecutionService {
 
     const startTime = Date.now();
     try {
-      const typeStr = type as string;
+      // Some model/provider combinations omit the manifest type when echoing a
+      // connector tool call and persist it as `builtin`. The manifest is the
+      // server-side source of truth: an HTTP/stdio MCP connector must still be
+      // dispatched through MCPService, otherwise BuiltinToolsExecutor returns an
+      // empty result because no builtin runtime exists for the connector id.
+      const manifest = context.toolManifestMap[identifier] as any;
+      const typeStr = manifest?.type === 'mcp' || manifest?.mcpParams ? 'mcp' : (type as string);
       let data: ToolExecutionResult;
       switch (typeStr) {
         case 'mcp': {

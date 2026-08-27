@@ -56,6 +56,37 @@ describe('ToolExecutionService', () => {
     );
   });
 
+  it('routes connector calls as MCP when the model marks them builtin', async () => {
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const service = new ToolExecutionService({
+      builtinToolsExecutor: { execute: vi.fn() } as any,
+      mcpService: { callTool } as any,
+    });
+
+    await service.executeTool(
+      {
+        apiName: 'document_archive_search',
+        arguments: JSON.stringify({ archive_id: 224176, query: '抄送' }),
+        id: 'tool-call-connector',
+        identifier: 'hbai-env-tools',
+        type: 'builtin',
+      },
+      {
+        businessContext: { archiveId: '224176', kind: 'archive' },
+        toolManifestMap: {
+          'hbai-env-tools': {
+            api: [],
+            identifier: 'hbai-env-tools',
+            mcpParams: { type: 'http', url: 'http://mcp.test/mcp' },
+            type: 'mcp',
+          } as any,
+        },
+      },
+    );
+
+    expect(callTool).toHaveBeenCalled();
+  });
+
   it('injects enterprise_id from enterprise business context for enterprise MCP tools', async () => {
     const callTool = vi.fn().mockResolvedValue({ ok: true });
     const service = new ToolExecutionService({
