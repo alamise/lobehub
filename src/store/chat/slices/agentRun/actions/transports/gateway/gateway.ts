@@ -378,6 +378,14 @@ export class GatewayActionImpl {
     metadata?: Pick<MessageMetadata, 'trigger'>;
     /** Called when the gateway session completes (agent finished running) */
     onComplete?: () => void;
+    /**
+     * Called with the server-assigned topic id the first time a topic is created.
+     * Used by isolated callers (archive / enterprise detail panels) that own
+     * their own topic pointer and must persist it client-side — the global
+     * active-topic switch is skipped for them so opening a detail page never
+     * hijacks the main chat.
+     */
+    onTopicCreated?: (topicId: string) => void;
     /** Temporary sidebar topic inserted by sendMessage before the server creates the real topic. */
     optimisticTopic?: { id: string; metadata?: ChatTopicMetadata; title: string };
     /** Parent message ID for regeneration/continue (skip user message creation, branch from this message) */
@@ -436,6 +444,7 @@ export class GatewayActionImpl {
       message,
       metadata,
       onComplete,
+      onTopicCreated,
       optimisticTopic,
       parentMessageId,
       parentOperationId,
@@ -479,6 +488,14 @@ export class GatewayActionImpl {
             }
           : undefined;
 
+    // Carry the archive / enterprise binding onto the server-created topic so the
+    // record↔conversation link persists on the server (not only in the
+    // browser-local pointer). `execAgentTask` writes `initialTopicMetadata`
+    // straight into the new topic's metadata column.
+    const topicMetadataForCreate = context.businessContext
+      ? { ...initialTopicMetadata, businessContext: context.businessContext }
+      : initialTopicMetadata;
+
     // Honour user-initiated cancel during phase-1 init: while we await the
     // execAgentTask round-trip the caller's loading state (e.g. `sendMessage`)
     // is still running, so the ChatInput stop button is active. Forward the
@@ -516,7 +533,7 @@ export class GatewayActionImpl {
             editingAgentId: this.#get().activeAgentId ?? undefined,
           }),
           groupId: context.groupId,
-          ...(initialTopicMetadata && { initialTopicMetadata }),
+          ...(topicMetadataForCreate && { initialTopicMetadata: topicMetadataForCreate }),
           // Forward the group orchestration role so the server can stamp it onto
           // the assistant message metadata. Without this the gateway-created
           // supervisor turn loses its role on the step_start snapshot / refetch
@@ -555,7 +572,7 @@ export class GatewayActionImpl {
       // Topic created successfully — now safe to clear the pending repo selection.
       if (context.agentId) consumePendingTopicRepos(context.agentId);
       if (optimisticTopic) {
-        const topicMetadata = optimisticTopic.metadata ?? initialTopicMetadata;
+        const topicMetadata = optimisticTopic.metadata ?? topicMetadataForCreate;
         this.#get().internal_replaceTopicId({
           agentId: context.agentId,
           groupId: context.groupId,
@@ -576,18 +593,28 @@ export class GatewayActionImpl {
         /* non-critical */
       }
 
-      await this.#get().switchTopic(result.topicId, {
-        clearNewKey: true,
-        skipRefreshMessage: true,
-      });
+      if (context.isolatedTopic) {
+        // Isolated panels (archive / enterprise detail) own their topic pointer and
+        // must never touch the global active topic — otherwise opening a detail
+        // page would hijack the main chat. Hand the server-created id back so the
+        // caller can persist it and re-render under its own key.
+        await onTopicCreated?.(result.topicId);
+      } else {
+        await this.#get().switchTopic(result.topicId, {
+          clearNewKey: true,
+          skipRefreshMessage: true,
+        });
 
-      // Refresh the topic list so the new topic appears in topicDataMap (sidebar).
-      // Unlike the direct-API sendMessage path (which receives topics[] in the
-      // response and calls internal_updateTopics), the gateway path only gets a
-      // topicId — we must explicitly refetch so the sidebar shows the new topic.
-      this.#get()
-        .refreshTopic()
-        .catch((err) => console.error('[Gateway] refreshTopic after topic creation failed:', err));
+        // Refresh the topic list so the new topic appears in topicDataMap (sidebar).
+        // Unlike the direct-API sendMessage path (which receives topics[] in the
+        // response and calls internal_updateTopics), the gateway path only gets a
+        // topicId — we must explicitly refetch so the sidebar shows the new topic.
+        this.#get()
+          .refreshTopic()
+          .catch((err) =>
+            console.error('[Gateway] refreshTopic after topic creation failed:', err),
+          );
+      }
 
       if (abortSignal?.aborted) {
         aiAgentService

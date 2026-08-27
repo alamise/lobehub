@@ -28,33 +28,6 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     min-height: 0;
   `,
-  // Temporary verification banner — confirms the archive id / title are
-  // actually propagated from the detail page into the native chat context.
-  // Remove once the archive-id passthrough is verified in production.
-  debugBar: css`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 16px;
-    align-items: center;
-
-    padding-block: 6px;
-    padding-inline: 12px;
-    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
-
-    font-size: 12px;
-    line-height: 1.4;
-    color: ${cssVar.colorTextSecondary};
-
-    background: ${cssVar.colorFillQuaternary};
-  `,
-  debugLabel: css`
-    font-weight: 600;
-    color: ${cssVar.colorText};
-  `,
-  debugValue: css`
-    font-variant-numeric: tabular-nums;
-    color: ${cssVar.colorText};
-  `,
 }));
 
 interface BusinessNativeChatPanelProps {
@@ -98,7 +71,6 @@ Placeholder.displayName = 'BusinessNativeChatPlaceholder';
 const BusinessNativeChatPanel = memo<BusinessNativeChatPanelProps>(
   ({
     agentId,
-    archiveTitle,
     contextId,
     disabledReason,
     emptyText,
@@ -107,7 +79,7 @@ const BusinessNativeChatPanel = memo<BusinessNativeChatPanelProps>(
     onInternalReferenceClick,
     title,
   }) => {
-    const { persistTopicId, resetTopic, topicId } = useBusinessTopic(kind, contextId);
+    const { persistTopicId, resetTopic, topicId } = useBusinessTopic(kind, contextId, agentId);
 
     const businessContext = useMemo(() => buildBusinessContext(kind, contextId), [kind, contextId]);
 
@@ -149,20 +121,6 @@ const BusinessNativeChatPanel = memo<BusinessNativeChatPanelProps>(
 
     return (
       <div className={styles.root} onClickCapture={handleClickCapture}>
-        {/* 临时校验展示：确认档案 ID / 标题已从详情页透传到原生对话上下文。上线验证后移除。 */}
-        <div className={styles.debugBar}>
-          <span className={styles.debugLabel}>业务上下文校验（临时）</span>
-          <span>
-            档案 ID：<span className={styles.debugValue}>{contextId || '-'}</span>
-          </span>
-          <span>
-            档案标题：
-            <span className={styles.debugValue}>{archiveTitle || '-'}</span>
-          </span>
-          <span>
-            类型：<span className={styles.debugValue}>{businessContext.kind}</span>
-          </span>
-        </div>
         <BusinessConversationProvider
           agentId={agentId}
           businessContext={businessContext}

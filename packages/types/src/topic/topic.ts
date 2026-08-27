@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { BusinessAgentContext } from '../agentExecution';
 import type { SerializedAgentHook } from '../agentHook';
 import { serializedAgentHookSchema } from '../agentHook';
 import type { WorkingDirConfig } from '../device';
@@ -111,6 +112,16 @@ export interface OnboardingSessionSnapshot {
 export interface ChatTopicMetadata {
   bot?: ChatTopicBotContext;
   boundDeviceId?: string;
+  /**
+   * Archive / enterprise binding for business detail-page conversations.
+   *
+   * Written when a shared business agent (档案问答 / 企业问答) creates a topic
+   * from an archive or enterprise detail page. It makes the topic — and every
+   * message under it — reliably re-associable with the record on reload, across
+   * devices, and after the browser-local pointer is cleared, and lets the agent
+   * tell which record a conversation belongs to when resuming / across requests.
+   */
+  businessContext?: BusinessAgentContext;
   cronJobId?: string;
   /**
    * Scoped pointer to the currently active assistant message for a running
@@ -386,6 +397,7 @@ export const parseTopicScheduledRun = (raw: unknown): TopicScheduledRun | null =
 /** Metadata patch accepted by the topic update API. */
 export const chatTopicMetadataUpdateSchema = z.object({
   boundDeviceId: z.string().optional(),
+  businessContext: z.custom<BusinessAgentContext>().optional(),
   heteroSessionId: z.string().optional(),
   heteroSessionIdByWorkingDirectory: z.record(z.string(), z.string()).optional(),
   model: z.string().optional(),

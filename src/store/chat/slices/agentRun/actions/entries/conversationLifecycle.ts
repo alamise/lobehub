@@ -857,12 +857,19 @@ export class ConversationLifecycleActionImpl {
             newAssistantMessage: { provider: heterogeneousProvider.type },
             newTopic: !operationContext.topicId
               ? {
-                  metadata: workingDirectory
-                    ? {
-                        workingDirectory,
-                        ...(workingDirectoryConfig ? { workingDirectoryConfig } : {}),
-                      }
-                    : undefined,
+                  metadata: {
+                    ...(workingDirectory
+                      ? {
+                          workingDirectory,
+                          ...(workingDirectoryConfig ? { workingDirectoryConfig } : {}),
+                        }
+                      : {}),
+                    // Persist the archive / enterprise binding onto the topic
+                    // (see client-mode branch for rationale).
+                    ...(operationContext.businessContext
+                      ? { businessContext: operationContext.businessContext }
+                      : {}),
+                  },
                   ...newTopicModelSnapshot,
                   title: newTopicTitle,
                   topicMessageIds: messages.map((m) => m.id),
@@ -1103,6 +1110,11 @@ export class ConversationLifecycleActionImpl {
           fileIds: fileIdList,
           message,
           metadata: requestMetadata,
+          // Hand the server-created topic id back to isolated callers (e.g. the
+          // archive / enterprise detail panel) so they can persist + re-render
+          // under their own key. Without this the isolated panel never learns
+          // the topicId and loses its history on reload.
+          onTopicCreated,
           parentOperationId: operationId,
           optimisticTopic,
           // Forward @-mentioned tool ids so the server runtime enables them for
@@ -1250,6 +1262,13 @@ export class ConversationLifecycleActionImpl {
           newTopic: !topicId
             ? {
                 ...newTopicModelSnapshot,
+                // Persist the archive / enterprise binding onto the topic so the
+                // record↔conversation link lives on the server (not just in the
+                // browser-local pointer). Enables reload / cross-device recovery
+                // and lets the model tell which record a conversation belongs to.
+                ...(operationContext.businessContext
+                  ? { metadata: { businessContext: operationContext.businessContext } }
+                  : {}),
                 topicMessageIds: forceNewTopicFromExisting ? [] : messages.map((m) => m.id),
                 title: newTopicTitle,
               }
