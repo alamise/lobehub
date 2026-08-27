@@ -9,14 +9,23 @@ export type BusinessAgentKind = BusinessAgentContext['kind'];
  */
 const TOPIC_PREFIX = 'business-agent-topic';
 
-export const buildTopicStorageKey = (kind: BusinessAgentKind, contextId: string) =>
+export const buildTopicStorageKey = (
+  kind: BusinessAgentKind,
+  contextId: string,
+  agentId?: string,
+) => `${TOPIC_PREFIX}:${agentId || 'unconfigured'}:${kind}:${contextId}`;
+
+export const buildLegacyTopicStorageKey = (kind: BusinessAgentKind, contextId: string) =>
   `${TOPIC_PREFIX}:${kind}:${contextId}`;
 
 export const buildBusinessContext = (
   kind: BusinessAgentKind,
   contextId: string,
 ): BusinessAgentContext | undefined => {
-  if (!contextId) return undefined;
+  if (!/^\d+$/.test(contextId)) return undefined;
+
+  const numericId = Number(contextId);
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) return undefined;
 
   return kind === 'archive'
     ? { archiveId: contextId, kind: 'archive' }

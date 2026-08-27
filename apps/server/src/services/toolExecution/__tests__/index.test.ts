@@ -4,6 +4,29 @@ import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutionService } from '../index';
 
 describe('ToolExecutionService', () => {
+  it('rejects archive-scoped tools when business context is missing', async () => {
+    const callTool = vi.fn();
+    const service = new ToolExecutionService({
+      builtinToolsExecutor: { execute: vi.fn() } as any,
+      mcpService: { callTool } as any,
+    });
+
+    const result = await service.executeTool(
+      {
+        apiName: 'document_archive_search',
+        arguments: JSON.stringify({ archive_id: 123, query: '验收意见' }),
+        id: 'tool-call-1',
+        identifier: 'hbai-mcp',
+        type: 'mcp',
+      },
+      { toolManifestMap: { 'hbai-mcp': { mcpParams: { type: 'http' } } as any } },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual(expect.objectContaining({ code: 'BUSINESS_CONTEXT_REQUIRED' }));
+    expect(callTool).not.toHaveBeenCalled();
+  });
+
   it('injects archive_id from archive business context for document MCP tools', async () => {
     const callTool = vi.fn().mockResolvedValue({ ok: true });
     const service = new ToolExecutionService({

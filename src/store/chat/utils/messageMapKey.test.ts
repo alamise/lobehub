@@ -4,6 +4,20 @@ import { messageMapKey } from './messageMapKey';
 
 describe('messageMapKey', () => {
   describe('Main mode (default scope)', () => {
+    it('isolates new business conversations by record', () => {
+      const archiveA = messageMapKey({
+        agentId: 'agt_xxx',
+        businessContext: { archiveId: '123', kind: 'archive' },
+      });
+      const archiveB = messageMapKey({
+        agentId: 'agt_xxx',
+        businessContext: { archiveId: '456', kind: 'archive' },
+      });
+
+      expect(archiveA).toBe('main_agt_xxx_business_archive_123');
+      expect(archiveB).toBe('main_agt_xxx_business_archive_456');
+    });
+
     it('should use main as default scope when no threadId', () => {
       const result = messageMapKey({ agentId: 'agt_xxx' });
       expect(result).toBe('main_agt_xxx_new');

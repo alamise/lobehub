@@ -94,10 +94,10 @@ const normalizeToolArgs = (args: unknown): Record<string, unknown> => {
     : {};
 };
 
-const toNumericIdIfPossible = (value: string) => {
+const parseBusinessContextId = (value: string) => {
+  if (!/^\d+$/.test(value)) return;
   const numericValue = Number(value);
-
-  return Number.isFinite(numericValue) ? numericValue : value;
+  return Number.isSafeInteger(numericValue) && numericValue > 0 ? numericValue : undefined;
 };
 
 const injectBusinessContextArgs = (
@@ -107,9 +107,20 @@ const injectBusinessContextArgs = (
   const { apiName } = payload;
   const businessContext = context.businessContext;
 
-  if (!businessContext) return { payload };
-
   if (ARCHIVE_CONTEXT_TOOL_NAMES.has(apiName)) {
+    if (!businessContext) {
+      return {
+        error: {
+          content: `Tool ${apiName} requires business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_REQUIRED',
+            message: `Tool ${apiName} requires business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
     if (businessContext.kind !== 'archive') {
       return {
         error: {
@@ -124,18 +135,46 @@ const injectBusinessContextArgs = (
       };
     }
 
+    const archiveId = parseBusinessContextId(businessContext.archiveId);
+    if (!archiveId) {
+      return {
+        error: {
+          content: `Tool ${apiName} received invalid archive business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_INVALID',
+            message: `Tool ${apiName} received invalid archive business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
+
     return {
       payload: {
         ...payload,
         arguments: JSON.stringify({
           ...normalizeToolArgs(payload.arguments),
-          archive_id: toNumericIdIfPossible(businessContext.archiveId),
+          archive_id: archiveId,
         }),
       },
     };
   }
 
   if (ENTERPRISE_CONTEXT_TOOL_NAMES.has(apiName)) {
+    if (!businessContext) {
+      return {
+        error: {
+          content: `Tool ${apiName} requires business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_REQUIRED',
+            message: `Tool ${apiName} requires business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
     if (businessContext.kind !== 'enterprise') {
       return {
         error: {
@@ -150,12 +189,27 @@ const injectBusinessContextArgs = (
       };
     }
 
+    const enterpriseId = parseBusinessContextId(businessContext.enterpriseId);
+    if (!enterpriseId) {
+      return {
+        error: {
+          content: `Tool ${apiName} received invalid enterprise business context`,
+          error: {
+            code: 'BUSINESS_CONTEXT_INVALID',
+            message: `Tool ${apiName} received invalid enterprise business context`,
+          },
+          success: false,
+        },
+        payload,
+      };
+    }
+
     return {
       payload: {
         ...payload,
         arguments: JSON.stringify({
           ...normalizeToolArgs(payload.arguments),
-          enterprise_id: toNumericIdIfPossible(businessContext.enterpriseId),
+          enterprise_id: enterpriseId,
         }),
       },
     };
@@ -214,7 +268,6 @@ export class ToolExecutionService {
           break;
         }
 
-        case 'builtin':
         default: {
           data = await this.builtinToolsExecutor.execute(payload, context);
           break;

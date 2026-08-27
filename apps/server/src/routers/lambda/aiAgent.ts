@@ -217,6 +217,7 @@ const ExecAgentSchema = z
         groupId: z.string().nullish(),
         initialTopicMetadata: z
           .object({
+            businessContext: BusinessContextSchema.optional(),
             repos: z.array(z.string()).optional(),
             workingDirectory: z.string().optional(),
             workingDirectoryConfig: workingDirConfigSchema.optional(),

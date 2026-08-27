@@ -1,4 +1,8 @@
-import { type MessageMapContext, type MessageMapScope } from '@lobechat/types';
+import {
+  type BusinessAgentContext,
+  type MessageMapContext,
+  type MessageMapScope,
+} from '@lobechat/types';
 
 /**
  * Input context for messageMapKey function
@@ -9,6 +13,8 @@ export interface MessageMapKeyInput {
    * Agent ID (maps to scopeId in main/thread scope)
    */
   agentId: string;
+  /** Immutable binding for isolated archive / enterprise panels. */
+  businessContext?: BusinessAgentContext;
   /**
    * Document ID (page scope only). The page agent is a single builtin agent
    * shared by every open document, so the documentId is what isolates one
@@ -48,7 +54,33 @@ export interface MessageMapKeyInput {
  * Handles mapping from agentId/threadId to scopeId/subTopicId format
  */
 const toMessageMapContext = (input: MessageMapKeyInput): MessageMapContext => {
-  const { agentId, topicId, threadId, isNew, groupId, subAgentId, scope, documentId } = input;
+  const {
+    agentId,
+    businessContext,
+    topicId,
+    threadId,
+    isNew,
+    groupId,
+    subAgentId,
+    scope,
+    documentId,
+  } = input;
+
+  // A shared business agent can have several detail panels open at once. Until
+  // each panel resolves a server topic they would otherwise all collapse into
+  // `main_<agent>_new`, leaking optimistic messages between records.
+  if (businessContext && !groupId && !threadId) {
+    const contextId =
+      businessContext.kind === 'archive' ? businessContext.archiveId : businessContext.enterpriseId;
+
+    return {
+      isNew,
+      scope: scope ?? 'main',
+      scopeId: agentId,
+      subTopicId: `business_${businessContext.kind}_${contextId}`,
+      topicId,
+    };
+  }
 
   // Page scope: the page agent is a single shared builtin agent, so the open
   // documentId is the only thing that distinguishes one document's conversation

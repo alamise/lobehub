@@ -1,4 +1,5 @@
 import type {
+  BusinessAgentContext,
   HeteroSessionImportPayload,
   HeteroSessionImportResult,
   HeteroSessionImportStatus,
@@ -94,6 +95,13 @@ export class TopicService {
       triggers: params.triggers,
       withDetails: params.withDetails,
     }) as any;
+  };
+
+  getBusinessTopic = (params: {
+    agentId: string;
+    businessContext: BusinessAgentContext;
+  }): Promise<ChatTopic | null> => {
+    return lambdaClient.topic.getBusinessTopic.query(params) as any;
   };
 
   queryTopics = (params?: {

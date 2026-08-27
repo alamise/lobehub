@@ -1,4 +1,5 @@
 import type {
+  BusinessAgentContext,
   ChatTopicMetadata,
   ChatTopicStatus,
   DBMessageItem,
@@ -572,6 +573,32 @@ export class TopicModel {
     return this.db.query.topics.findFirst({
       where: and(eq(topics.id, id), this.ownership()),
     });
+  };
+
+  /** Resolve the newest owned topic bound to one exact business record. */
+  findByBusinessContext = async (
+    agentId: string,
+    businessContext: BusinessAgentContext,
+  ): Promise<TopicItem | undefined> => {
+    const contextId =
+      businessContext.kind === 'archive' ? businessContext.archiveId : businessContext.enterpriseId;
+    const idField = businessContext.kind === 'archive' ? 'archiveId' : 'enterpriseId';
+
+    const [topic] = await this.db
+      .select()
+      .from(topics)
+      .where(
+        and(
+          this.ownership(),
+          eq(topics.agentId, agentId),
+          sql`${topics.metadata}->'businessContext'->>'kind' = ${businessContext.kind}`,
+          sql`${topics.metadata}->'businessContext'->>${idField} = ${contextId}`,
+        ),
+      )
+      .orderBy(desc(topics.updatedAt), desc(topics.id))
+      .limit(1);
+
+    return topic;
   };
 
   /**

@@ -1,5 +1,6 @@
 import { PERMISSION_ACTIONS } from '@lobechat/const/rbac';
 import {
+  type BusinessAgentContext,
   chatTopicMetadataUpdateSchema,
   chatTopicStatusSchema,
   type HeteroSessionImportPayload,
@@ -82,6 +83,11 @@ const topicProcedure = wsCompatProcedure.use(serverDatabase).use(async (opts) =>
 
 const topicBulkDeleteScopeSchema = z.enum(['own', 'workspace']).default('own');
 
+const businessContextSchema = z.discriminatedUnion('kind', [
+  z.object({ archiveId: z.string().regex(/^\d+$/), kind: z.literal('archive') }),
+  z.object({ enterpriseId: z.string().regex(/^\d+$/), kind: z.literal('enterprise') }),
+]);
+
 interface TopicShareCtx {
   serverDB: LobeChatDatabase;
   topicModel: TopicModel;
@@ -142,6 +148,15 @@ const recordTopicShareAudit = async (
 };
 
 export const topicRouter = router({
+  getBusinessTopic: topicProcedure
+    .input(z.object({ agentId: z.string().min(1), businessContext: businessContextSchema }))
+    .query(async ({ input, ctx }) => {
+      return ctx.topicModel.findByBusinessContext(
+        input.agentId,
+        input.businessContext as BusinessAgentContext,
+      );
+    }),
+
   getTopicDetail: topicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {

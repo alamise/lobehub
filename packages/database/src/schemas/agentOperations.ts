@@ -1,5 +1,5 @@
 import { verifyRunStatuses } from '@lobechat/const/verify';
-import type { VerifyCheckItem } from '@lobechat/types';
+import type { BusinessAgentContext, VerifyCheckItem } from '@lobechat/types';
 import { boolean, index, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 
 import { amountNumeric, timestamps, timestamptz } from './_helpers';
@@ -43,6 +43,7 @@ export interface AgentOperationError {
 }
 
 export interface AgentOperationAppContext {
+  businessContext?: BusinessAgentContext;
   defaultTaskAssigneeAgentId?: string;
   documentId?: string | null;
   groupId?: string | null;

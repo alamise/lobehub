@@ -708,7 +708,8 @@ const BusinessArchiveDetailPage = memo(() => {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const archiveId = Number.parseInt(params.id || '', 10);
+  const archiveId = /^\d+$/.test(params.id || '') ? Number(params.id) : Number.NaN;
+  const isValidArchiveId = Number.isSafeInteger(archiveId) && archiveId > 0;
   const isKnowledgeSource = searchParams.get('source') === 'knowledge';
 
   const { data: session, isPending } = useSession();
@@ -1461,7 +1462,7 @@ const BusinessArchiveDetailPage = memo(() => {
               <BusinessNativeChatPanel
                 agentId={isKnowledgeSource ? undefined : archiveAgentId}
                 archiveTitle={archive?.title}
-                contextId={String(archiveId)}
+                contextId={isValidArchiveId ? String(archiveId) : ''}
                 emptyText="请输入关于当前档案的问题"
                 kind="archive"
                 title="当前档案问答"

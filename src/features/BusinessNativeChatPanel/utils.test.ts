@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { isCurrentArchiveReferenceHref } from './utils';
+import { buildBusinessContext, isCurrentArchiveReferenceHref } from './utils';
+
+describe('buildBusinessContext', () => {
+  it('accepts only safe positive integer ids', () => {
+    expect(buildBusinessContext('archive', '123')).toEqual({ archiveId: '123', kind: 'archive' });
+    expect(buildBusinessContext('archive', '123abc')).toBeUndefined();
+    expect(buildBusinessContext('archive', '0')).toBeUndefined();
+    expect(buildBusinessContext('archive', '9007199254740992')).toBeUndefined();
+  });
+});
 
 describe('isCurrentArchiveReferenceHref', () => {
   it('detects current archive reference links', () => {

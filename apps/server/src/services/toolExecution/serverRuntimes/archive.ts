@@ -8,8 +8,9 @@ import { type ServerRuntimeRegistration } from './types';
 const ARCHIVE_SCOPE = 'ent';
 
 const parseArchiveId = (value: string): number | undefined => {
-  const id = Number.parseInt(value, 10);
-  if (!Number.isFinite(id) || id <= 0) return undefined;
+  if (!/^\d+$/.test(value)) return undefined;
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) return undefined;
   return id;
 };
 

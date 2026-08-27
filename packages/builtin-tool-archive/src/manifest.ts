@@ -19,10 +19,9 @@ export const ArchiveManifest: BuiltinToolManifest = {
     },
   ],
   identifier: ArchiveIdentifier,
-  // 本工具必须在浏览器端执行：档案 id 取自页面 URL（如
-  // /enforcement/archive/224195），服务端无法读取。未配置 DEVICE_GATEWAY
-  // 的纯 web 部署下，服务端会把调用经 Agent Gateway WS 派发给客户端执行器。
-  executors: ['client'],
+  // The server runtime reads the validated operation business context and the
+  // authoritative archive database; the browser URL is not a trust boundary.
+  executors: ['server'],
   meta: {
     avatar: '🗂️',
     description: '获取当前正在浏览的档案的 id 与基本信息',

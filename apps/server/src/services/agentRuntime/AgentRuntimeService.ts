@@ -472,6 +472,7 @@ export class AgentRuntimeService {
     await this.completionLifecycle.recordStart({
       agentId: appContext?.agentId ?? null,
       appContext: {
+        businessContext: appContext?.businessContext,
         defaultTaskAssigneeAgentId: appContext?.defaultTaskAssigneeAgentId,
         documentId: appContext?.documentId,
         groupId: appContext?.groupId,

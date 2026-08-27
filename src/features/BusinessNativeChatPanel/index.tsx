@@ -19,7 +19,7 @@ import {
 
 export { isCurrentArchiveReferenceHref } from './utils';
 
-const styles = createStaticStyles(({ css, cssVar }) => ({
+const styles = createStaticStyles(({ css }) => ({
   root: css`
     overflow: hidden;
     display: flex;
@@ -79,7 +79,8 @@ const BusinessNativeChatPanel = memo<BusinessNativeChatPanelProps>(
     onInternalReferenceClick,
     title,
   }) => {
-    const { persistTopicId, resetTopic, topicId } = useBusinessTopic(kind, contextId, agentId);
+    const { hasResolutionError, isResolving, persistTopicId, resetTopic, topicId } =
+      useBusinessTopic(kind, contextId, agentId);
 
     const businessContext = useMemo(() => buildBusinessContext(kind, contextId), [kind, contextId]);
 
@@ -128,9 +129,14 @@ const BusinessNativeChatPanel = memo<BusinessNativeChatPanelProps>(
           onTopicCreated={persistTopicId}
         >
           <Conversation
-            emptyText={emptyText ?? '可以就当前内容向我提问'}
+            disabled={isResolving}
             guideQuestions={stableGuideQuestions}
             title={title}
+            emptyText={
+              hasResolutionError
+                ? '会话恢复失败，请点击“新对话”重试'
+                : (emptyText ?? '可以就当前内容向我提问')
+            }
             onNewChat={handleNewChat}
           />
         </BusinessConversationProvider>

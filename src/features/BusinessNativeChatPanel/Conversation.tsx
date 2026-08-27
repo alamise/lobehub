@@ -49,11 +49,12 @@ const styles = createStaticStyles(({ css }) => ({
 }));
 
 interface WelcomeProps {
+  disabled?: boolean;
   emptyText: string;
   guideQuestions: string[];
 }
 
-const Welcome = memo<WelcomeProps>(({ emptyText, guideQuestions }) => {
+const Welcome = memo<WelcomeProps>(({ disabled, emptyText, guideQuestions }) => {
   const sendMessage = useConversationStore((s) => s.sendMessage);
   const isInputLoading = useConversationStore(conversationSelectors.isInputLoading);
 
@@ -66,7 +67,7 @@ const Welcome = memo<WelcomeProps>(({ emptyText, guideQuestions }) => {
         <Button
           block
           className={styles.welcomeButton}
-          disabled={isInputLoading}
+          disabled={disabled || isInputLoading}
           key={question}
           onClick={() => sendMessage({ isWelcomeQuestion: true, message: question })}
         >
@@ -80,56 +81,60 @@ const Welcome = memo<WelcomeProps>(({ emptyText, guideQuestions }) => {
 Welcome.displayName = 'BusinessChatWelcome';
 
 interface ConversationProps {
+  disabled?: boolean;
   emptyText: string;
   guideQuestions: string[];
   onNewChat: () => void;
   title: string;
 }
 
-const Conversation = memo<ConversationProps>(({ emptyText, guideQuestions, onNewChat, title }) => {
-  const agentId = useConversationStore(conversationSelectors.agentId);
+const Conversation = memo<ConversationProps>(
+  ({ disabled, emptyText, guideQuestions, onNewChat, title }) => {
+    const agentId = useConversationStore(conversationSelectors.agentId);
 
-  // Hydrate the shared business agent's config (model / provider / plugins);
-  // ChatInput and the upload pipeline both read from it.
-  const useFetchAgentConfig = useAgentStore((s) => s.useFetchAgentConfig);
-  useFetchAgentConfig(!!agentId, agentId);
+    // Hydrate the shared business agent's config (model / provider / plugins);
+    // ChatInput and the upload pipeline both read from it.
+    const useFetchAgentConfig = useAgentStore((s) => s.useFetchAgentConfig);
+    useFetchAgentConfig(!!agentId, agentId);
 
-  const model = useAgentStore((s) => agentByIdSelectors.getAgentModelById(agentId)(s));
-  const provider = useAgentStore((s) => agentByIdSelectors.getAgentModelProviderById(agentId)(s));
-  const { handleUploadFiles } = useUploadFiles({ agentId, model, provider });
+    const model = useAgentStore((s) => agentByIdSelectors.getAgentModelById(agentId)(s));
+    const provider = useAgentStore((s) => agentByIdSelectors.getAgentModelProviderById(agentId)(s));
+    const { handleUploadFiles } = useUploadFiles({ agentId, model, provider });
 
-  const welcome = useMemo(
-    () => <Welcome emptyText={emptyText} guideQuestions={guideQuestions} />,
-    [emptyText, guideQuestions],
-  );
+    const welcome = useMemo(
+      () => <Welcome disabled={disabled} emptyText={emptyText} guideQuestions={guideQuestions} />,
+      [disabled, emptyText, guideQuestions],
+    );
 
-  return (
-    <DragUploadZone style={{ flex: 1, height: '100%' }} onUploadFiles={handleUploadFiles}>
-      <Flexbox flex={1} height={'100%'} style={{ minHeight: 0, overflow: 'hidden' }}>
-        <Flexbox horizontal align={'center'} className={styles.header} justify={'space-between'}>
-          <Text ellipsis weight={600}>
-            {title}
-          </Text>
-          <ActionIcon icon={SquarePen} size={'small'} title={'新对话'} onClick={onNewChat} />
+    return (
+      <DragUploadZone style={{ flex: 1, height: '100%' }} onUploadFiles={handleUploadFiles}>
+        <Flexbox flex={1} height={'100%'} style={{ minHeight: 0, overflow: 'hidden' }}>
+          <Flexbox horizontal align={'center'} className={styles.header} justify={'space-between'}>
+            <Text ellipsis weight={600}>
+              {title}
+            </Text>
+            <ActionIcon icon={SquarePen} size={'small'} title={'新对话'} onClick={onNewChat} />
+          </Flexbox>
+
+          <Flexbox flex={1} style={{ minHeight: 0, overflow: 'hidden' }}>
+            <ChatList welcome={welcome} />
+          </Flexbox>
+
+          <ActionBarContext value={COMPACT_ACTION_BAR_CONTEXT}>
+            <ChatInput
+              actionBarStyle={COMPACT_ACTION_BAR_STYLE}
+              allowExpand={false}
+              disableSend={disabled}
+              leftActions={LEFT_ACTIONS}
+              sendButtonProps={COMPACT_SEND_BUTTON_PROPS}
+              showControlBar={false}
+            />
+          </ActionBarContext>
         </Flexbox>
-
-        <Flexbox flex={1} style={{ minHeight: 0, overflow: 'hidden' }}>
-          <ChatList welcome={welcome} />
-        </Flexbox>
-
-        <ActionBarContext value={COMPACT_ACTION_BAR_CONTEXT}>
-          <ChatInput
-            actionBarStyle={COMPACT_ACTION_BAR_STYLE}
-            allowExpand={false}
-            leftActions={LEFT_ACTIONS}
-            sendButtonProps={COMPACT_SEND_BUTTON_PROPS}
-            showControlBar={false}
-          />
-        </ActionBarContext>
-      </Flexbox>
-    </DragUploadZone>
-  );
-});
+      </DragUploadZone>
+    );
+  },
+);
 
 Conversation.displayName = 'BusinessNativeConversation';
 

@@ -98,6 +98,7 @@ export interface ExecAgentAppContext {
    * this execution. Ignored when a topicId is already provided (existing topic).
    */
   initialTopicMetadata?: {
+    businessContext?: BusinessAgentContext;
     repos?: string[];
     workingDirectory?: string;
     workingDirectoryConfig?: WorkingDirConfig;

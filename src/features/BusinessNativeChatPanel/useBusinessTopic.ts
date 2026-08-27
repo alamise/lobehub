@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { topicService } from '@/services/topic';
 
-import { buildTopicStorageKey, type BusinessAgentKind } from './utils';
+import {
+  buildBusinessContext,
+  buildLegacyTopicStorageKey,
+  buildTopicStorageKey,
+  type BusinessAgentKind,
+} from './utils';
 
 const readTopic = (key: string): string | undefined => {
   if (typeof window === 'undefined') return undefined;
@@ -51,64 +56,72 @@ const clearTopic = (key: string) => {
  *     reconnect to the record's conversation instead of creating a fresh orphan.
  */
 export const useBusinessTopic = (kind: BusinessAgentKind, contextId: string, agentId?: string) => {
-  const storageKey = buildTopicStorageKey(kind, contextId);
-
-  const [topicId, setTopicId] = useState<string | undefined>(() => readTopic(storageKey));
+  const storageKey = buildTopicStorageKey(kind, contextId, agentId);
+  const businessContext = useMemo(() => buildBusinessContext(kind, contextId), [kind, contextId]);
+  const [state, setState] = useState<{
+    forceNew?: boolean;
+    key: string;
+    status: 'error' | 'ready' | 'resolving';
+    topicId?: string;
+  }>(() => ({ key: storageKey, status: 'resolving', topicId: readTopic(storageKey) }));
+  const currentState = state.key === storageKey ? state : undefined;
+  const topicId = currentState?.topicId;
+  const hasResolutionError = currentState?.status === 'error';
+  const isResolving = !currentState || currentState.status !== 'ready';
 
   // Switching to another archive/enterprise must swap the topic pointer
   // synchronously with the key, otherwise the panel would briefly render the
   // previous record's conversation.
   useEffect(() => {
-    setTopicId(readTopic(storageKey));
-  }, [storageKey]);
+    let localTopicId = readTopic(storageKey);
+    if (!localTopicId) {
+      localTopicId = readTopic(buildLegacyTopicStorageKey(kind, contextId));
+      if (localTopicId) writeTopic(storageKey, localTopicId);
+    }
+    setState({ key: storageKey, status: 'resolving', topicId: localTopicId });
+  }, [storageKey, kind, contextId]);
 
   // Server-authoritative fallback: when the browser-local pointer is missing,
   // reconnect to the record's existing topic instead of starting a new orphan.
   useEffect(() => {
-    if (topicId || !agentId) return;
+    if (!agentId || !businessContext || state.key !== storageKey || state.forceNew) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const { items } = await topicService.getTopics({ agentId, pageSize: 200 });
+        const match = await topicService.getBusinessTopic({ agentId, businessContext });
         if (cancelled) return;
-
-        const match = items.find((topic) => {
-          const binding = topic.metadata?.businessContext;
-          if (!binding || binding.kind !== kind) return false;
-          return kind === 'archive'
-            ? binding.archiveId === contextId
-            : binding.enterpriseId === contextId;
-        });
 
         if (match?.id) {
           writeTopic(storageKey, match.id);
-          setTopicId(match.id);
+          setState({ key: storageKey, status: 'ready', topicId: match.id });
+        } else {
+          setState({ key: storageKey, status: 'ready' });
         }
       } catch {
-        /* non-critical: the first message will create a fresh topic */
+        if (!cancelled) setState({ key: storageKey, status: 'error' });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [storageKey, topicId, agentId, kind, contextId]);
+  }, [storageKey, state.key, topicId, agentId, businessContext]);
 
   const persistTopicId = useCallback(
     (createdTopicId: string) => {
       if (!createdTopicId) return;
       writeTopic(storageKey, createdTopicId);
-      setTopicId(createdTopicId);
+      setState({ forceNew: false, key: storageKey, status: 'ready', topicId: createdTopicId });
     },
     [storageKey],
   );
 
   const resetTopic = useCallback(() => {
     clearTopic(storageKey);
-    setTopicId(undefined);
+    setState({ forceNew: true, key: storageKey, status: 'ready' });
   }, [storageKey]);
 
-  return { persistTopicId, resetTopic, topicId };
+  return { hasResolutionError, isResolving, persistTopicId, resetTopic, topicId };
 };

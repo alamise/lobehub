@@ -488,14 +488,6 @@ export class GatewayActionImpl {
             }
           : undefined;
 
-    // Carry the archive / enterprise binding onto the server-created topic so the
-    // record↔conversation link persists on the server (not only in the
-    // browser-local pointer). `execAgentTask` writes `initialTopicMetadata`
-    // straight into the new topic's metadata column.
-    const topicMetadataForCreate = context.businessContext
-      ? { ...initialTopicMetadata, businessContext: context.businessContext }
-      : initialTopicMetadata;
-
     // Honour user-initiated cancel during phase-1 init: while we await the
     // execAgentTask round-trip the caller's loading state (e.g. `sendMessage`)
     // is still running, so the ChatInput stop button is active. Forward the
@@ -533,7 +525,7 @@ export class GatewayActionImpl {
             editingAgentId: this.#get().activeAgentId ?? undefined,
           }),
           groupId: context.groupId,
-          ...(topicMetadataForCreate && { initialTopicMetadata: topicMetadataForCreate }),
+          ...(initialTopicMetadata && { initialTopicMetadata }),
           // Forward the group orchestration role so the server can stamp it onto
           // the assistant message metadata. Without this the gateway-created
           // supervisor turn loses its role on the step_start snapshot / refetch

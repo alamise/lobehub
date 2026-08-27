@@ -23,7 +23,19 @@ describe('assertCanUseBusinessContext', () => {
       query: mocks.query,
       release: mocks.release,
     });
-    mocks.query.mockResolvedValue({ rows: [{ exists: true }] });
+    mocks.query.mockResolvedValue({
+      rows: [
+        {
+          category_code: 'case',
+          doc_no: 'A-1',
+          exists: true,
+          id: 123,
+          page_count: 10,
+          title: 'Archive',
+          year: 2026,
+        },
+      ],
+    });
   });
 
   it('is a no-op without business context', async () => {
@@ -61,8 +73,16 @@ describe('assertCanUseBusinessContext', () => {
     expect(mocks.connect).not.toHaveBeenCalled();
   });
 
+  it('rejects partially numeric ids before querying', async () => {
+    await expect(
+      assertCanUseBusinessContext({ archiveId: '123abc', kind: 'archive' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+
   it('rejects missing archive rows', async () => {
-    mocks.query.mockResolvedValueOnce({ rows: [{ exists: false }] });
+    mocks.query.mockResolvedValueOnce({ rows: [] });
 
     await expect(
       assertCanUseBusinessContext({ archiveId: '123', kind: 'archive' }),

@@ -56,8 +56,11 @@ export const withLegacyClient = async <T>(fn: (client: PoolClient) => Promise<T>
 };
 
 const parseBusinessId = (value: string, label: string) => {
-  const id = Number.parseInt(value, 10);
-  if (!Number.isFinite(id) || id <= 0) {
+  if (!/^\d+$/.test(value)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: `Invalid ${label}` });
+  }
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) {
     throw new TRPCError({
       code: 'BAD_REQUEST',
       message: `Invalid ${label}`,
@@ -67,31 +70,61 @@ const parseBusinessId = (value: string, label: string) => {
   return id;
 };
 
+export interface ArchiveRuntimeContext {
+  archiveId: string;
+  categoryCode: string | null;
+  docNo: string | null;
+  kind: 'archive';
+  pageCount: number | null;
+  title: string | null;
+  year: number | null;
+}
+
+export const getArchiveRuntimeContext = async (
+  archiveIdValue: string,
+): Promise<ArchiveRuntimeContext> => {
+  const archiveId = parseBusinessId(archiveIdValue, 'archiveId');
+  const row = await withLegacyClient(async (client) => {
+    const result = await client.query<{
+      category_code: string | null;
+      doc_no: string | null;
+      id: number;
+      page_count: number | null;
+      title: string | null;
+      year: number | null;
+    }>(
+      `SELECT id, title, category_code, doc_no, year, page_count
+       FROM file_archive
+       WHERE id = $1 AND visible = $2 AND scope = $3
+       LIMIT 1`,
+      [archiveId, 'yes', ENTERPRISE_ARCHIVE_SCOPE],
+    );
+    return result.rows[0];
+  });
+
+  if (!row) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: '当前用户不可访问该档案或档案不存在',
+    });
+  }
+
+  return {
+    archiveId: String(row.id),
+    categoryCode: row.category_code,
+    docNo: row.doc_no,
+    kind: 'archive',
+    pageCount: row.page_count,
+    title: row.title,
+    year: row.year,
+  };
+};
+
 export const assertCanUseBusinessContext = async (businessContext?: BusinessAgentContext) => {
   if (!businessContext) return;
 
   if (businessContext.kind === 'archive') {
-    const archiveId = parseBusinessId(businessContext.archiveId, 'archiveId');
-    const exists = await withLegacyClient(async (client) => {
-      const result = await client.query<{ exists: boolean }>(
-        `SELECT EXISTS (
-          SELECT 1 FROM file_archive
-          WHERE id = $1 AND visible = $2 AND scope = $3
-        ) AS exists`,
-        [archiveId, 'yes', ENTERPRISE_ARCHIVE_SCOPE],
-      );
-
-      return result.rows[0]?.exists === true;
-    });
-
-    if (!exists) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: '当前用户不可访问该档案或档案不存在',
-      });
-    }
-
-    return;
+    return getArchiveRuntimeContext(businessContext.archiveId);
   }
 
   const enterpriseId = parseBusinessId(businessContext.enterpriseId, 'enterpriseId');
